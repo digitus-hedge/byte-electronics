@@ -1,0 +1,300 @@
+<script setup>
+import { ref } from 'vue';
+// import { Inertia } from '@inertiajs/inertia';
+import { toast } from 'vue3-toastify';
+import 'vue3-toastify/dist/index.css';
+import Swal from 'sweetalert2';
+import AppLayout from '@/Layouts/AppLayout.vue';
+import BreadCrums from '@/Layouts/BreadCrums.vue';
+import Banner from "@/Components/helpers/Banner.vue";
+
+defineProps({
+    ContactUsBanner: String,
+});
+
+// Form state
+const form = ref({
+    name: '',
+    email: '',
+    message: '',
+});
+
+// Validation errors
+const errors = ref({});
+
+// Validate email format
+const isValidEmail = (email) => {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+};
+
+// Handle form submission
+const submitForm = () => {
+    Swal.fire({
+        title: 'Confirm Submission',
+        text: 'Are you sure you want to send this message?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#ef4137',
+        cancelButtonColor: '#6c757d',
+        confirmButtonText: 'Yes, Send',
+        cancelButtonText: 'Cancel',
+    }).then((result) => {
+        if (result.isConfirmed) {
+            // Show success toast on confirmation
+            toast.success('Submission confirmed!', { autoClose: 2000 });
+
+            // Reset errors
+            errors.value = {};
+
+            // Validate inputs
+            let hasError = false;
+            if (!form.value.name) {
+                errors.value.name = 'Name is required';
+                hasError = true;
+            }
+            if (!form.value.email) {
+                errors.value.email = 'Email is required';
+                hasError = true;
+            } else if (!isValidEmail(form.value.email)) {
+                errors.value.email = 'Please enter a valid email address';
+                hasError = true;
+            }
+            if (!form.value.message) {
+                errors.value.message = 'Message is required';
+                hasError = true;
+            }
+
+            if (hasError) {
+                toast.error('Please fill out all required fields correctly', { autoClose: 3000 });
+                return;
+            }
+
+            // Submit form via Inertia
+            Inertia.post(route('contact.submit'), form.value, {
+                onSuccess: () => {
+                    toast.success('Message sent successfully!', { autoClose: 3000 });
+                    // Reset form
+                    form.value = { name: '', email: '', message: '' };
+                },
+                onError: (serverErrors) => {
+                    errors.value = serverErrors;
+                    toast.error('Failed to send message. Please try again.', { autoClose: 3000 });
+                },
+            });
+        }
+    });
+};
+</script>
+
+<template>
+    <AppLayout>
+        <BreadCrums />
+        <Banner :image="ContactUsBanner" :search="false" text="Get in Touch" />
+        <div class="container-fluid container d-flex flex-column align-items-start mt-4 mb-4">
+            <div class="row w-100 align-items-stretch">
+                <!-- Left Side Cards -->
+                <div class="col-12 col-md-4 mb-4 mb-md-0 d-flex flex-column custome_class">
+                    <div class="card mb-3 contact-card h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="contact-icon bg-primary-light">
+                                <i class="bi bi-telephone text-primary"></i>
+                            </div>
+                            <div class="ms-3">
+                                <h6 class="mb-0 text-muted">Phone</h6>
+                                <span class="fw-medium">+971 42 962 030</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mb-3 contact-card h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="contact-icon bg-success-light">
+                                <i class="bi bi-envelope text-success"></i>
+                            </div>
+                            <div class="ms-3 text-truncate">
+                                <h6 class="mb-0 text-muted">Email</h6>
+                                <span class="fw-medium d-inline-block text-truncate"
+                                    style="max-width: 209px;">info@byte-electronics.com</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card contact-card h-100">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="contact-icon bg-warning-light">
+                                <i class="bi bi-geo-alt text-warning"></i>
+                            </div>
+                            <div class="ms-3">
+                                <h6 class="mb-0 text-muted">Location</h6>
+                                <span class="fw-medium">Dubai, UAE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Message Form Column -->
+                <div class="col-12 col-md-8 contact-form p-3 p-md-4 h-100 custome_class">
+                    <h4 class="mb-4 fw-bold">Leave a message</h4>
+                    <div class="row">
+                        <div class="col-12 col-md-6 mb-3">
+                            <input
+                                type="text"
+                                class="form-control form-control-lg"
+                                placeholder="Name"
+                                v-model="form.name"
+                                :class="{ 'is-invalid': errors.name }"
+                            >
+                            <div v-if="errors.name" class="invalid-feedback">{{ errors.name }}</div>
+                        </div>
+                        <div class="col-12 col-md-6 mb-3">
+                            <input
+                                type="email"
+                                class="form-control form-control-lg"
+                                placeholder="Email"
+                                v-model="form.email"
+                                :class="{ 'is-invalid': errors.email }"
+                            >
+                            <div v-if="errors.email" class="invalid-feedback">{{ errors.email }}</div>
+                        </div>
+                        <div class="col-12 mb-3">
+                            <textarea
+                                class="form-control form-control-lg"
+                                placeholder="Type your message here!"
+                                rows="4"
+                                v-model="form.message"
+                                :class="{ 'is-invalid': errors.message }"
+                            ></textarea>
+                            <div v-if="errors.message" class="invalid-feedback">{{ errors.message }}</div>
+                        </div>
+                        <div class="col-12">
+                            <button
+                                type="submit"
+                                style="font-size: 14px;color:#fff;background:#EF4137;"
+                                class="btn  btn-lg px-4 py-2"
+                                @click="submitForm"
+                            >
+                                Send Message
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 w-100">
+                <img :src="`/assets/images/map.png`" alt="Map" class="img-fluid map rounded-3 shadow-sm">
+            </div>
+        </div>
+    </AppLayout>
+</template>
+
+<style scoped>
+* {
+    color: #2c3e50;
+}
+
+.contact-card {
+    border-radius: 14px;
+    border: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.contact-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+}
+
+.contact-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+}
+
+.bg-primary-light {
+    background-color: rgba(13, 110, 253, 0.1);
+}
+
+.bg-success-light {
+    background-color: rgba(25, 135, 84, 0.1);
+}
+
+.bg-warning-light {
+    background-color: rgba(255, 193, 7, 0.1);
+}
+
+.contact-form {
+    background: white;
+    border-radius: 22px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.form-control,
+.form-control:focus {
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 12px 16px;
+    box-shadow: none;
+    font-size: 0.9rem;
+}
+
+.form-control::placeholder {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.form-control:focus {
+    border-color: #86b7fe;
+}
+
+.form-control.is-invalid {
+    border-color: #dc3545;
+}
+
+.invalid-feedback {
+    color: #dc3545;
+    font-size: 0.85rem;
+    margin-top: 0.25rem;
+}
+
+.btn-primary {
+    background-color: #ef4137;
+    border: none;
+    border-radius: 10px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(13, 110, 253, 0.3);
+}
+
+.map {
+    max-width: 100%;
+    height: auto;
+    object-fit: cover;
+    border: 1px solid #f0f0f0;
+}
+
+@media (max-width: 767.98px) {
+    .card {
+        margin-bottom: 1rem !important;
+    }
+
+    .col-md-8 {
+        margin-top: 1rem;
+    }
+
+    .custome_class {
+        margin: 10px;
+    }
+
+    .btn-primary {
+        width: 100%;
+    }
+}
+</style>

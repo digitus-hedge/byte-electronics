@@ -1,0 +1,19 @@
+.filterText{
+    font-weight: 500;
+}
+.card-header button {
+    text-align: left;
+    font-size: 15px;
+    font-weight: bold;
+    text-decoration: none;
+    color: #111;
+}
+
+.card-header button i {
+    transition: transform 0.3s ease;
+}
+
+#collapseOne ul{
+    list-style: none;
+    font-size: 14px;
+}
