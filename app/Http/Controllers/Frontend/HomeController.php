@@ -14,7 +14,8 @@ use ReCaptcha\ReCaptcha;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ContactFormMail;
 use Illuminate\Support\Facades\Log;
-
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class HomeController extends Controller
 {
@@ -22,7 +23,7 @@ class HomeController extends Controller
     {
         $formattedBanners = $this->formattedBanners();
         $newestProducts = $this->newestProducts();
-     
+
         $bestSellers = $this->bestSellers();
 
         $categoriesShow = Category::select('id', 'name', 'slug', 'file_name')
@@ -58,7 +59,52 @@ class HomeController extends Controller
             ];
         });
     }
+
     private function newestProducts()
+
+
+{
+    $products = DB::select("
+        SELECT
+            p.id,
+            p.name,
+            p.description,
+            p.file_name,
+            p.slug,
+            p.manufacturers_no,
+            (SELECT pp.total_price
+             FROM product_prices pp
+             WHERE pp.product_id = p.id
+             ORDER BY pp.id ASC
+             LIMIT 1) as total_price,
+            (SELECT pp2.qty
+             FROM product_prices pp2
+             WHERE pp2.product_id = p.id
+             AND pp2.qty > 0
+             ORDER BY pp2.qty ASC
+             LIMIT 1) as min_qty
+        FROM products p
+        WHERE p.deleted_at IS NULL
+        ORDER BY p.created_at DESC
+        LIMIT 20
+    ");
+
+    return collect($products)->map(function ($product) {
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'description' => Str::limit(strip_tags($product->description), 150),
+            'image' => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
+            'isNew' => true,
+            'slug' => "products/details/" . $product->slug,
+            'part_no' => $product->manufacturers_no,
+            'min_qty' => $product->min_qty ?? 0,
+            'has_price' => !is_null($product->total_price),
+            'total_price' => $product->total_price ?? 0,
+        ];
+    });
+}
+    private function newestProducts_old()
     {
        return Products::with('prices','minQuantity')->orderBy('created_at', 'desc')->take(20)->get()->map(function ($product) {
         $firstPrice = $product->prices->first();
@@ -215,7 +261,7 @@ class HomeController extends Controller
         $recaptcha = new ReCaptcha(config('services.recaptcha.secret'));
         $response = $recaptcha->verify($request->recaptchaToken, $request->ip());
 
-        if (!$response->isSuccess()) 
+        if (!$response->isSuccess())
         {
             Log::error('reCAPTCHA verification failed', [
                 'errors' => $response->getErrorCodes(),
