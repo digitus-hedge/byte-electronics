@@ -9,26 +9,27 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Products extends Model
 {
+
     use HasFactory, SoftDeletes , Sluggable;
 
     protected $fillable = [
-        'name', 
-        'slug', 
-        'brand_id', 
+        'name',
+        'slug',
+        'brand_id',
         'category_id',
-        'sub_category_id', 
+        'sub_category_id',
         'file_name',
-        'org_name', 
-        'manufacturers_no', 
-        'price', 
+        'org_name',
+        'manufacturers_no',
+        'price',
         'description',
-        'more_description', 
-        'meta_title', 
+        'more_description',
+        'meta_title',
         'meta_description',
-        'tag', 
-        'minimum_qty', 
+        'tag',
+        'minimum_qty',
         'is_repairable',
-        'featured', 
+        'featured',
         'status',
         'best_sellers'
     ];
