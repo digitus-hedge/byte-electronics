@@ -197,15 +197,15 @@ class FrontendCategoryController extends Controller
             : [
                 'category'    => url("products/filter?productType%5B0%5D=" . $categories[0]['id'] . '&subCategory%5B0%5D=' . $finalEntity->id),
             ];
-        dd([
-            'image'           => $image,
-            'title'           => $finalEntity->name,
-            'description'     => $finalEntity->description,
-            'current_categories' => $categoriesForFrontend,
-            'subCategories'   => $subCategories,
-            // 'productCategory' => $categories[0]['url'],
-            'filterUrl'       => $filterUrl,
-        ]);
+        // dd([
+        //     'image'           => $image,
+        //     'title'           => $finalEntity->name,
+        //     'description'     => $finalEntity->description,
+        //     'current_categories' => $categoriesForFrontend,
+        //     'subCategories'   => $subCategories,
+        //     // 'productCategory' => $categories[0]['url'],
+        //     'filterUrl'       => $filterUrl,
+        // ]);
         // Return the Inertia.js response with the desired format
         return Inertia::render('Category/Details', [
             'image'           => $image,
