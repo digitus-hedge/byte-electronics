@@ -10,6 +10,8 @@ return new class extends Migration
      * Run the migrations.
      */
     public function up()
+
+
 {
     Schema::table('products', function (Blueprint $table) {
         $table->index('created_at');

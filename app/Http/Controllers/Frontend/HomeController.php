@@ -61,6 +61,8 @@ class HomeController extends Controller
     }
 
     private function newestProducts()
+
+
 {
     $products = DB::select("
         SELECT

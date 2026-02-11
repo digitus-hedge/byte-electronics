@@ -53,6 +53,8 @@ router.on('finish', (event) => {
         // NProgress.remove();
     }
 });
+
+
 document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('loader').style.display = 'none';
 });
