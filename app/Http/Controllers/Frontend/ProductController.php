@@ -295,6 +295,227 @@ class ProductController extends Controller
 
 
     public function filter(Request $request)
+{
+    $search       = $request->input('search', '');
+    $manufacturer = $request->input('manufacturer', []);
+    $productType  = $request->input('productType', []);
+    $subCategory  = $request->input('subCategory', []);
+    $page         = $request->input('page', 1);
+    $active       = filter_var($request->input('active', false), FILTER_VALIDATE_BOOLEAN);
+    $rohsCompliant = filter_var($request->input('rohsCompliant', false), FILTER_VALIDATE_BOOLEAN);
+    $newProducts  = filter_var($request->input('newProducts', false), FILTER_VALIDATE_BOOLEAN);
+    $attributeFilters = $request->input('attributeFilters', []);
+
+    $normalizedAttributeFilters = [];
+    foreach ($attributeFilters as $key => $values) {
+        $normalizedValues = [];
+        if (is_string($values) && !empty($values)) {
+            $normalizedValues = [$values];
+        } elseif (is_array($values) || is_object($values)) {
+            $valuesArray = is_object($values) ? get_object_vars($values) : $values;
+            $normalizedValues = array_filter(
+                array_values($valuesArray),
+                fn($val) => is_string($val) && !empty($val)
+            );
+        }
+        if (!empty($normalizedValues)) {
+            $normalizedAttributeFilters[$key] = array_values($normalizedValues);
+        }
+    }
+
+    $filters = $request->only(['manufacturer', 'productType', 'subCategory', 'page', 'search', 'active', 'rohsCompliant', 'newProducts']);
+    $filters['attributeFilters'] = $normalizedAttributeFilters;
+    $categoryIds = !empty($filters['productType']) ? implode(',', $filters['productType']) : '';
+    $subCategoryIds = !empty($filters['subCategory']) ? implode(',', $filters['subCategory']) : '';
+
+    // Base query — NO eager loading
+    $query = Products::query()
+        ->select('id', 'name', 'slug', 'file_name', 'status', 'created_at', 'category_id', 'sub_category_id', 'brand_id')
+        ->whereNull('deleted_at');
+
+    if ($search !== '') {
+        $query->where('name', 'like', "%{$search}%");
+    }
+    if (!empty($filters['manufacturer'])) {
+        $query->whereIn('brand_id', $filters['manufacturer']);
+    }
+    if (!empty($filters['productType'])) {
+        $query->whereIn('category_id', $filters['productType']);
+    }
+    if (!empty($filters['subCategory'])) {
+        $query->whereIn('sub_category_id', $filters['subCategory']);
+    }
+    if ($active) {
+        $query->where('status', 1);
+    }
+    if ($rohsCompliant) {
+        $query->whereHas('attributes.documents', function ($q) {
+            $q->where('name', 'RoHS');
+        });
+    }
+    if ($newProducts) {
+        $query->where('created_at', '>=', now()->subDays(30));
+    }
+    if (!empty($filters['attributeFilters'])) {
+        foreach ($filters['attributeFilters'] as $attributeName => $values) {
+            if (!empty($values)) {
+                $query->whereHas('attributes.documents', function ($q) use ($attributeName, $values) {
+                    $q->where('name', $attributeName)->whereIn('value', $values);
+                });
+            }
+        }
+    }
+
+    // ---- COUNT with FORCE INDEX ----
+    // Build WHERE conditions for raw count
+    $countWhere = ['deleted_at IS NULL'];
+    $countBindings = [];
+
+    if (!empty($filters['productType'])) {
+        $placeholders = implode(',', array_fill(0, count($filters['productType']), '?'));
+        $countWhere[] = "category_id IN ($placeholders)";
+        $countBindings = array_merge($countBindings, $filters['productType']);
+    }
+    if (!empty($filters['manufacturer'])) {
+        $placeholders = implode(',', array_fill(0, count($filters['manufacturer']), '?'));
+        $countWhere[] = "brand_id IN ($placeholders)";
+        $countBindings = array_merge($countBindings, $filters['manufacturer']);
+    }
+    if (!empty($filters['subCategory'])) {
+        $placeholders = implode(',', array_fill(0, count($filters['subCategory']), '?'));
+        $countWhere[] = "sub_category_id IN ($placeholders)";
+        $countBindings = array_merge($countBindings, $filters['subCategory']);
+    }
+    if ($search !== '') {
+        $countWhere[] = "name LIKE ?";
+        $countBindings[] = "%{$search}%";
+    }
+    if ($active) {
+        $countWhere[] = "status = 1";
+    }
+    if ($newProducts) {
+        $countWhere[] = "created_at >= ?";
+        $countBindings[] = now()->subDays(30)->toDateTimeString();
+    }
+
+    $whereClause = implode(' AND ', $countWhere);
+    $countResult = DB::select(
+        "SELECT COUNT(*) as total FROM products FORCE INDEX (idx_products_cat_status_del_brand) WHERE {$whereClause}",
+        $countBindings
+    );
+    $total = $countResult[0]->total;
+
+    // ---- PAGINATED PRODUCTS ----
+    $products = $query->forPage($page, 20)->get();
+
+    // Check if page exceeds last page
+    $lastPage = max(1, ceil($total / 20));
+    if ($page > $lastPage) {
+        $page = $lastPage;
+        $products = $query->forPage($page, 20)->get();
+    }
+
+    $prod = new \Illuminate\Pagination\LengthAwarePaginator(
+        $products, $total, 20, $page,
+        ['path' => request()->url(), 'query' => request()->query()]
+    );
+
+    // ---- RoHS for only 20 products ----
+    $productIds = $products->pluck('id');
+    $rohsProductIds = [];
+    if ($productIds->isNotEmpty()) {
+        $rohsProductIds = DB::table('product_extended as pe')
+            ->join('product_attr_documents as pad', 'pe.id', '=', 'pad.product_ext_id')
+            ->whereIn('pe.product_id', $productIds)
+            ->where('pad.name', 'RoHS')
+            ->pluck('pe.product_id')
+            ->toArray();
+    }
+
+    $formattedProducts = $prod->through(function ($product) use ($rohsProductIds) {
+        return [
+            'id' => $product->id,
+            'image' => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
+            'name' => $product->name,
+            'slug' => $product->slug,
+            'active' => (bool) $product->status,
+            'rohs_compliant' => in_array($product->id, $rohsProductIds),
+            'created_at' => $product->created_at->toDateTimeString(),
+        ];
+    });
+
+    // ---- Cached filter dropdowns ----
+    $brands = Cache::remember('filter_brands', 3600, fn() =>
+        Brands::select('id', 'name')->get()->toArray()
+    );
+    $categories = Cache::remember('filter_categories', 3600, fn() =>
+        Category::select('id', 'name')->get()->toArray()
+    );
+    $subCategories = Cache::remember('filter_subcategories', 3600, fn() =>
+        SubCategory::select('id', 'name')->get()->toArray()
+    );
+
+    // ---- Valid attribute names ----
+    $validAttributeNames = [];
+if (!empty($filters['productType']) || !empty($filters['attributeFilters'])) {
+    $cacheKey = 'valid_attr_names_' . $categoryIds . '_' . $subCategoryIds;
+    $validAttributeNames = Cache::remember($cacheKey, 3600, function () use ($filters) {
+        return DB::table('product_attr_documents as pad')
+            ->join('product_extended as pe', 'pad.product_ext_id', '=', 'pe.id')
+            ->join('products as p', 'pe.product_id', '=', 'p.id')
+            ->whereIn('p.category_id', $filters['productType'] ?? [])
+            ->whereNull('p.deleted_at')
+            ->distinct()
+            ->pluck('pad.name')
+            ->toArray();
+    });
+}
+
+    // ---- Cached attributes ----
+    $attributes = Cache::remember(
+        "product_attributes_{$categoryIds}_{$subCategoryIds}",
+        2592000,
+        fn() => DB::select('CALL GetProductAttributes(?, ?)', [$categoryIds, $subCategoryIds])
+    );
+
+    return inertia('Products/List', [
+        'ProductBanner' => asset('assets/banners/banner.jpg'),
+        'productPageFilter' => [
+            ['head' => 'Manufacturer', 'data' => array_map(fn($b) => ['id' => $b['id'], 'name' => $b['name']], $brands)],
+            ['head' => 'Product Type', 'data' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $categories)],
+            ['head' => 'Sub Product Type', 'data' => array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $subCategories)],
+            ...array_filter(array_map(function ($attribute) use ($validAttributeNames) {
+                if (empty($validAttributeNames) || in_array($attribute->attribute_name, $validAttributeNames)) {
+                    return [
+                        'head' => $attribute->attribute_name,
+                        'data' => array_map(fn($value) => [
+                            'id' => $value->document_id,
+                            'name' => $value->value,
+                        ], json_decode($attribute->attribute_values ?? '[]') ?: []),
+                    ];
+                }
+                return null;
+            }, $attributes), fn($item) => !is_null($item)),
+        ],
+        'products' => $formattedProducts,
+        'brands' => $brands,
+        'categories' => $categories,
+        'subCategories' => $subCategories,
+        'selectedFilters' => [
+            'manufacturer' => $filters['manufacturer'] ?? [],
+            'productType' => $filters['productType'] ?? [],
+            'subCategory' => $filters['subCategory'] ?? [],
+            'page' => $page ?? 1,
+            'search' => $filters['search'] ?? '',
+            'active' => $filters['active'] ?? false,
+            'rohsCompliant' => $filters['rohsCompliant'] ?? false,
+            'newProducts' => $filters['newProducts'] ?? false,
+            'attributeFilters' => $filters['attributeFilters'] ?? [],
+        ],
+    ]);
+}
+
+    public function filter_old(Request $request)
     {
         // Extract filter inputs with defaults
         $search       = $request->input('search', '');
