@@ -10,7 +10,7 @@ use Inertia\Inertia;
 use App\Models\Brands;
 use Carbon\Carbon;
 use Illuminate\Container\Attributes\Log;
-
+use Illuminate\Support\Facades\DB;
 class FrontendCategoryController extends Controller
 {
     // public function index()
@@ -47,9 +47,64 @@ class FrontendCategoryController extends Controller
     //     ]);
     // }
 
-    public function index()
+
+public function index()
+{
+    $thirtyDaysAgo = Carbon::now()->subDays(30);
+
+    $categories = Category::with([
+        'subcategories' => function ($query) {
+            $query->whereNull('parent_id');
+        },
+        'subcategories.children',
+        'subcategories.children.children',
+    ])->get();
+
+    $categoryIds = $categories->pluck('id');
+
+    // Brand_ids per category only — ONE lightweight query
+   $brandsByCategory = collect(DB::select("
+    SELECT DISTINCT category_id, brand_id
+    FROM products FORCE INDEX (idx_products_cat_status_del_brand)
+    WHERE category_id IN (" . $categoryIds->implode(',') . ")
+    AND deleted_at IS NULL
+    AND status = 1
+"))->groupBy('category_id');
+
+    $categoriesWithNewProducts = DB::table('products')
+        ->select('category_id')
+        ->whereIn('category_id', $categoryIds)
+        ->whereNull('deleted_at')
+        ->where('created_at', '>=', $thirtyDaysAgo)
+        ->distinct()
+        ->pluck('category_id')
+        ->toArray();
+
+    $brands = Brands::where('status', 1)->select('id', 'name')->get()->toArray();
+
+    $dataArray = $categories->map(function ($category) use ($brandsByCategory, $categoriesWithNewProducts) {
+        return [
+            'name'        => $category->name,
+            'url'         => 'details/' . $category->slug,
+            'active'      => $category->status == 1,
+            'newProducts' => in_array($category->id, $categoriesWithNewProducts),
+            'brand_ids'   => isset($brandsByCategory[$category->id])
+                ? $brandsByCategory[$category->id]->pluck('brand_id')->unique()->values()->toArray()
+                : [],
+            'items'       => $category->subcategories->map(function ($subcategory) use ($category) {
+                return $this->formatSubcategory($subcategory, $category);
+            })->toArray(),
+        ];
+    })->toArray();
+
+    return Inertia::render('Category/CategoryList', [
+        'categories' => $dataArray,
+        'brands'     => $brands,
+    ]);
+}
+    public function index_old()
     {
-        ini_set('memory_limit', '1G');
+        ini_set('memory_limit', '2G');
         $categories = Category::with(['subcategories', 'products' => function ($query) {
             $query->where('created_at', '>=', Carbon::now()->subDays(30));
         }])->get();
@@ -79,24 +134,44 @@ class FrontendCategoryController extends Controller
         ]);
     }
 
-    private function formatSubcategory($subcategory, $category)
-    {
-        $data = [
-            'name'        => $subcategory->name,
-            'url'         => 'details/' . $category->slug . '/' . $subcategory->slug, // Correct URL format
-            'items'       => [],
-            'active'      => $subcategory->status == 1 ? true : false,
-            'newProducts' => $subcategory->created_at->diffInDays() <= 30 ? true : false,
-            'brand_ids'   => $subcategory->products->pluck('brand_id')->unique()->values()->toArray(),
-        ];
 
-        // Recursively add child subcategories
-        foreach ($subcategory->children as $childSubcategory) {
-            $data['items'][] = $this->formatSubcategory($childSubcategory, $category);
-        }
+private function formatSubcategory($subcategory, $category)
+{
+    $data = [
+        'name'        => $subcategory->name,
+        'url'         => 'details/' . $category->slug . '/' . $subcategory->slug,
+        'items'       => [],
+        'active'      => $subcategory->status == 1,
+        'newProducts' => $subcategory->created_at->diffInDays() <= 30,
+        'brand_ids'   => [], // Don't load per subcategory — too expensive
+    ];
 
-        return $data;
+    foreach ($subcategory->children as $childSubcategory) {
+        $data['items'][] = $this->formatSubcategory($childSubcategory, $category);
     }
+
+    return $data;
+}
+
+
+    // private function formatSubcategory($subcategory, $category)
+    // {
+    //     $data = [
+    //         'name'        => $subcategory->name,
+    //         'url'         => 'details/' . $category->slug . '/' . $subcategory->slug, // Correct URL format
+    //         'items'       => [],
+    //         'active'      => $subcategory->status == 1 ? true : false,
+    //         'newProducts' => $subcategory->created_at->diffInDays() <= 30 ? true : false,
+    //         'brand_ids'   => $subcategory->products->pluck('brand_id')->unique()->values()->toArray(),
+    //     ];
+
+    //     // Recursively add child subcategories
+    //     foreach ($subcategory->children as $childSubcategory) {
+    //         $data['items'][] = $this->formatSubcategory($childSubcategory, $category);
+    //     }
+
+    //     return $data;
+    // }
 
 
     public function show($any)

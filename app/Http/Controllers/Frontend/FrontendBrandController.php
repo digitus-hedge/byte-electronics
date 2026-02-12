@@ -5,6 +5,8 @@ use App\Http\Controllers\Controller;
 use Inertia\Inertia;
 use App\Models\Brands;
 use App\Models\Category;
+use Illuminate\Support\Facades\DB;
+
 
 class FrontendBrandController extends Controller
 {
@@ -43,7 +45,14 @@ class FrontendBrandController extends Controller
         // ]);
         // Fetch the brand data from the database
    // Fetch only the `name` and `slug` fields from the Brands table
-   $brands = Brands::select('name', 'slug')->get();
+   //$brands = Brands::select('name', 'slug')->get();
+   $brands = DB::table('brands')
+    ->select('name', 'slug','banner')
+    ->whereNull('deleted_at')
+    ->orderBy('name')
+    ->get();
+
+
    $brands->transform(function ($brand) {
     $brand->url = url("brands/details/{$brand->slug}");
     return $brand;
@@ -68,7 +77,10 @@ class FrontendBrandController extends Controller
 
 public function details($slug)
 {
-    $brandDetails = Brands::where('slug', $slug)->firstOrFail();
+    //$brandDetails = Brands::where('slug', $slug)->firstOrFail();
+    $brandDetails = Brands::select('id', 'name', 'slug', 'file_name', 'description')
+    ->where('slug', $slug)
+    ->firstOrFail();
 
     // Fetch categories that have products or subcategories with products under the current brand
     $categories_brand = Category::whereHas('products', function ($query) use ($brandDetails) {
