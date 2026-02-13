@@ -11,6 +11,7 @@ use App\Models\Brands;
 use Carbon\Carbon;
 use Illuminate\Container\Attributes\Log;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 class FrontendCategoryController extends Controller
 {
     // public function index()
@@ -47,9 +48,81 @@ class FrontendCategoryController extends Controller
     //     ]);
     // }
 
-
-public function index()
+    public function index()
 {
+
+//Just make sure you clear the cache when products or categories are updated:
+//Cache::forget('category_list_page_data');
+    $data = Cache::remember('category_list_page_data', 86400, function () {
+        $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
+
+        $categories = Category::select('id', 'name', 'slug', 'status')
+            ->with([
+                'subcategories' => fn($q) => $q->whereNull('parent_id')
+                    ->select('id', 'category_id', 'name', 'slug', 'parent_id'),
+                'subcategories.children' => fn($q) =>
+                    $q->select('id', 'category_id', 'name', 'slug', 'parent_id', 'sub_category_id'),
+                'subcategories.children.children' => fn($q) =>
+                    $q->select('id', 'category_id', 'name', 'slug', 'parent_id', 'sub_category_id'),
+            ])->get();
+
+        $categoryIds = $categories->pluck('id');
+
+        if ($categoryIds->isEmpty()) {
+            return ['categories' => [], 'brands' => []];
+        }
+
+        $productInfo = DB::table('products')
+            ->select(
+                'category_id',
+                'brand_id',
+                DB::raw("MAX(CASE WHEN created_at >= '{$thirtyDaysAgo}' THEN 1 ELSE 0 END) AS has_new")
+            )
+            ->whereIn('category_id', $categoryIds)
+            ->whereNull('deleted_at')
+            ->where('status', 1)
+            ->groupBy('category_id', 'brand_id')
+            ->get();
+
+        $brandsByCategory = $productInfo->groupBy('category_id');
+        $categoriesWithNewProducts = $productInfo
+            ->where('has_new', 1)
+            ->pluck('category_id')
+            ->unique()
+            ->flip()
+            ->toArray();
+
+        $relevantBrandIds = $productInfo->pluck('brand_id')->unique()->toArray();
+        $brands = Brands::where('status', 1)
+            ->whereIn('id', $relevantBrandIds)
+            ->select('id', 'name')
+            ->get()
+            ->toArray();
+
+        $dataArray = $categories->map(function ($category) use ($brandsByCategory, $categoriesWithNewProducts) {
+            return [
+                'name'        => $category->name,
+                'url'         => 'details/' . $category->slug,
+                'active'      => $category->status == 1,
+                'newProducts' => isset($categoriesWithNewProducts[$category->id]),
+                'brand_ids'   => isset($brandsByCategory[$category->id])
+                    ? $brandsByCategory[$category->id]->pluck('brand_id')->unique()->values()->toArray()
+                    : [],
+                'items'       => $category->subcategories->map(function ($subcategory) use ($category) {
+                    return $this->formatSubcategory($subcategory, $category);
+                })->toArray(),
+            ];
+        })->toArray();
+
+        return ['categories' => $dataArray, 'brands' => $brands];
+    });
+
+    return Inertia::render('Category/CategoryList', $data);
+}
+
+public function index22222()
+{
+
     $thirtyDaysAgo = Carbon::now()->subDays(30);
 
     $categories = Category::with([
@@ -102,6 +175,11 @@ public function index()
         'brands'     => $brands,
     ]);
 }
+
+
+
+
+
     public function index_old()
     {
         ini_set('memory_limit', '2G');
