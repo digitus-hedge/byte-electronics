@@ -17,7 +17,7 @@ class FrontendCategoryController extends Controller
 
 public function index()
 {
-    $data = Cache::remember('category_list_page', 3600, function () {
+    $data = Cache::remember('category_list_page', 86400, function () {
         $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
 
         $categories = Category::select('id', 'name', 'slug', 'status')->get();
