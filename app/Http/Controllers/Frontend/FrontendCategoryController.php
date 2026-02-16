@@ -17,6 +17,7 @@ class FrontendCategoryController extends Controller
 
 public function index()
 {
+
     $data = Cache::remember('category_list_page', 86400, function () {
         $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
 
@@ -43,13 +44,15 @@ public function index()
             }
         }
 
-        $productInfo = DB::select("
-            SELECT category_id, brand_id,
-                MAX(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS has_new
-            FROM products FORCE INDEX (products_category_brand_index)
-            WHERE deleted_at IS NULL AND status = 1
-            GROUP BY category_id, brand_id
-        ", [$thirtyDaysAgo]);
+        // $productInfo = DB::select("
+        //     SELECT category_id, brand_id,
+        //         MAX(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS has_new
+        //     FROM products FORCE INDEX (products_category_brand_index)
+        //     WHERE deleted_at IS NULL AND status = 1
+        //     GROUP BY category_id, brand_id
+        // ", [$thirtyDaysAgo]);
+        $productInfo = DB::select("CALL GetCategoryBrandSummary()");
+$productInfo = collect($productInfo);
 
         $brandsByCategory = [];
         $categoriesWithNewProducts = [];
