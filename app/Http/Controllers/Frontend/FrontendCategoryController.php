@@ -14,41 +14,107 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
 class FrontendCategoryController extends Controller
 {
-    // public function index()
-    // {
 
-    // $categories=Category::all();
-    // $subcategories=SubCategory::all();
-    //     $dataArray= [];
+public function index()
+{
+    $data = Cache::remember('category_list_page', 3600, function () {
+        $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
 
-    // foreach ($categories as $category) {
-    // // Prepare the main category data
-    // $categoryData = [
-    //     'name' => $category->name,
-    //     'url' => 'details/' . $category->slug, // Use the slug for the URL
-    //     'items' => []
-    // ];
+        $categories = Category::select('id', 'name', 'slug', 'status')->get();
+        $categoryIds = $categories->pluck('id');
 
-    // // Get subcategories for the current category
-    // $subcategories = $category->subcategories;
+        if ($categoryIds->isEmpty()) {
+            return ['categories' => [], 'brands' => []];
+        }
 
-    // // Add subcategories to the items array
-    // foreach ($subcategories as $subcategory) {
-    //     $categoryData['items'][] = [
-    //         'name' => $subcategory->name,
-    //         'url' => 'details/' . $category->slug . '/' . $subcategory->slug // Use slugs for the URL
-    //     ];
-    // }
+        $allSubs = DB::table('sub_categories')
+            ->select('id', 'category_id', 'name', 'slug', 'parent_id', 'status', 'created_at')
+            ->whereNull('deleted_at')
+            ->get();
 
-    // // Add the category data to the main array
-    // $dataArray[] = $categoryData;
-    // }
-    //     return Inertia::render('Category/CategoryList', [
-    //         'categories' => $dataArray
-    //     ]);
-    // }
+        $topLevel = [];
+        $childrenByParent = [];
 
-    public function index()
+        foreach ($allSubs as $sub) {
+            if ($sub->parent_id == $sub->category_id) {
+                $topLevel[$sub->category_id][] = $sub;
+            } else {
+                $childrenByParent[$sub->parent_id][] = $sub;
+            }
+        }
+
+        $productInfo = DB::select("
+            SELECT category_id, brand_id,
+                MAX(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS has_new
+            FROM products FORCE INDEX (products_category_brand_index)
+            WHERE deleted_at IS NULL AND status = 1
+            GROUP BY category_id, brand_id
+        ", [$thirtyDaysAgo]);
+
+        $brandsByCategory = [];
+        $categoriesWithNewProducts = [];
+        $allBrandIds = [];
+
+        foreach ($productInfo as $row) {
+            $catId = $row->category_id;
+            $brandId = $row->brand_id;
+            $brandsByCategory[$catId][$brandId] = true;
+            $allBrandIds[$brandId] = true;
+            if ($row->has_new == 1) {
+                $categoriesWithNewProducts[$catId] = true;
+            }
+        }
+
+        $brands = DB::table('brands')
+            ->where('status', 1)
+            ->whereIn('id', array_keys($allBrandIds))
+            ->select('id', 'name')
+            ->get()
+            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name])
+            ->toArray();
+
+        $dataArray = [];
+        foreach ($categories as $category) {
+            $subs = $topLevel[$category->id] ?? [];
+            $catBrands = isset($brandsByCategory[$category->id])
+                ? array_map('intval', array_keys($brandsByCategory[$category->id]))
+                : [];
+
+            $dataArray[] = [
+                'name'        => $category->name,
+                'url'         => 'details/' . $category->slug,
+                'active'      => $category->status == 1,
+                'newProducts' => isset($categoriesWithNewProducts[$category->id]),
+                'brand_ids'   => $catBrands,
+                'items'       => array_map(function ($sub) use ($category, &$childrenByParent, $thirtyDaysAgo) {
+                    return $this->buildSubTree($sub, $category, $childrenByParent, $thirtyDaysAgo);
+                }, $subs),
+            ];
+        }
+
+        return ['categories' => $dataArray, 'brands' => $brands];
+    });
+
+    return Inertia::render('Category/CategoryList', $data);
+}
+
+private function buildSubTree($sub, $category, &$childrenByParent, $thirtyDaysAgo)
+{
+    $children = $childrenByParent[$sub->id] ?? [];
+
+    return [
+        'name'        => $sub->name,
+        'url'         => 'details/' . $category->slug . '/' . $sub->slug,
+        'active'      => $sub->status == 1,
+        'newProducts' => $sub->created_at >= $thirtyDaysAgo,
+        'brand_ids'   => [],
+        'items'       => array_map(function ($child) use ($category, &$childrenByParent, $thirtyDaysAgo) {
+            return $this->buildSubTree($child, $category, $childrenByParent, $thirtyDaysAgo);
+        }, $children),
+    ];
+}
+
+    public function index_cache()
 {
 
 //Just make sure you clear the cache when products or categories are updated:
@@ -118,62 +184,6 @@ class FrontendCategoryController extends Controller
     });
 
     return Inertia::render('Category/CategoryList', $data);
-}
-
-public function index22222()
-{
-
-    $thirtyDaysAgo = Carbon::now()->subDays(30);
-
-    $categories = Category::with([
-        'subcategories' => function ($query) {
-            $query->whereNull('parent_id');
-        },
-        'subcategories.children',
-        'subcategories.children.children',
-    ])->get();
-
-    $categoryIds = $categories->pluck('id');
-
-    // Brand_ids per category only — ONE lightweight query
-   $brandsByCategory = collect(DB::select("
-    SELECT DISTINCT category_id, brand_id
-    FROM products FORCE INDEX (idx_products_cat_status_del_brand)
-    WHERE category_id IN (" . $categoryIds->implode(',') . ")
-    AND deleted_at IS NULL
-    AND status = 1
-"))->groupBy('category_id');
-
-    $categoriesWithNewProducts = DB::table('products')
-        ->select('category_id')
-        ->whereIn('category_id', $categoryIds)
-        ->whereNull('deleted_at')
-        ->where('created_at', '>=', $thirtyDaysAgo)
-        ->distinct()
-        ->pluck('category_id')
-        ->toArray();
-
-    $brands = Brands::where('status', 1)->select('id', 'name')->get()->toArray();
-
-    $dataArray = $categories->map(function ($category) use ($brandsByCategory, $categoriesWithNewProducts) {
-        return [
-            'name'        => $category->name,
-            'url'         => 'details/' . $category->slug,
-            'active'      => $category->status == 1,
-            'newProducts' => in_array($category->id, $categoriesWithNewProducts),
-            'brand_ids'   => isset($brandsByCategory[$category->id])
-                ? $brandsByCategory[$category->id]->pluck('brand_id')->unique()->values()->toArray()
-                : [],
-            'items'       => $category->subcategories->map(function ($subcategory) use ($category) {
-                return $this->formatSubcategory($subcategory, $category);
-            })->toArray(),
-        ];
-    })->toArray();
-
-    return Inertia::render('Category/CategoryList', [
-        'categories' => $dataArray,
-        'brands'     => $brands,
-    ]);
 }
 
 
@@ -266,21 +276,21 @@ private function formatSubcategory($subcategory, $category)
                 $parent = Category::where('slug', $slug)->first();
             } else {
                 // Debug: Output the parent and slug being processed
-                Log::info("Processing slug: $slug at level: $index", [
-                    'parent' => $parent,
-                    'query'  => SubCategory::where('slug', $slug)
-                        ->where(function ($query) use ($parent) {
-                            if ($parent instanceof Category) {
-                                // If parent is a Category, fetch subcategory with matching category_id
-                                $query->where('category_id', $parent->id);
-                            } else {
-                                // If parent is a SubCategory, fetch subcategory with matching parent_id
-                                $query->where('parent_id', $parent->id);
-                            }
-                        })
-                        ->whereNull('deleted_at')
-                        ->toSql(), // Output the raw SQL query
-                ]);
+                // Log::info("Processing slug: $slug at level: $index", [
+                //     'parent' => $parent,
+                //     'query'  => SubCategory::where('slug', $slug)
+                //         ->where(function ($query) use ($parent) {
+                //             if ($parent instanceof Category) {
+                //                 // If parent is a Category, fetch subcategory with matching category_id
+                //                 $query->where('category_id', $parent->id);
+                //             } else {
+                //                 // If parent is a SubCategory, fetch subcategory with matching parent_id
+                //                 $query->where('parent_id', $parent->id);
+                //             }
+                //         })
+                //         ->whereNull('deleted_at')
+                //         ->toSql(), // Output the raw SQL query
+                // ]);
 
                 // Find the correct SubCategory based on hierarchy
                 $parent = SubCategory::where('slug', $slug)
