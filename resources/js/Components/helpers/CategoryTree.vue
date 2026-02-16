@@ -1,37 +1,42 @@
 <template>
     <div class="container-fluid container d-flex flex-column align-items-start mt-4 mb-4"
-        v-for="(category, categoryIndex) in structuredCategories" :key="categoryIndex">
+        v-for="(category, categoryIndex) in categories" :key="categoryIndex">
         <!-- Category Title -->
-        <div class="d-flex align-items-center gap-3 mb-3">
-            <h6><Link :href="category.url" style="color: #ef4137;">{{ category.name }}</Link></h6>
-            <i class="fa fa-angle-right" aria-hidden="true"></i>
+        <div class="d-flex align-items-center gap-3 mb-3"
+             @click="toggle(categoryIndex)"
+             style="cursor: pointer;">
+            <h6>
+                <Link :href="category.url" @click.stop style="color: #ef4137;">{{ category.name }}</Link>
+            </h6>
+            <i :class="expanded[categoryIndex] ? 'fa fa-angle-down' : 'fa fa-angle-right'" aria-hidden="true"></i>
         </div>
 
-        <!-- First-Level Subcategories -->
-        <div v-for="(subCategory, subIndex) in category.items" :key="subIndex" class="ps-4 w-100 mb-3">
-            <Link :href="subCategory.url">
-                <p class="category-title" style="font-size: 15px; font-weight: 600; color: #212529;">
-                    {{ subCategory.name }}
-                </p>
-            </Link>
+        <!-- Only render subcategories when expanded -->
+        <template v-if="expanded[categoryIndex]">
+            <div v-for="(subCategory, subIndex) in category.items" :key="subIndex" class="ps-4 w-100 mb-3">
+                <Link :href="subCategory.url">
+                    <p class="category-title" style="font-size: 15px; font-weight: 600; color: #212529;">
+                        {{ subCategory.name }}
+                    </p>
+                </Link>
 
-            <!-- Subcategory List -->
-            <div class="sub-cat-head">
-                <ul class="categories" style="margin-left: 2rem;">
-                    <li v-for="(item, index) in subCategory.items"
-                        :key="index"
-                        :style="getItemStyle(index, subCategory.items.length)">
-                        <Link v-if="item.name" :href="item.url">{{ item.name }}</Link>
-                    </li>
-                </ul>
+                <div class="sub-cat-head" v-if="subCategory.items && subCategory.items.length">
+                    <ul class="categories" style="margin-left: 2rem;">
+                        <li v-for="(item, index) in subCategory.items"
+                            :key="index"
+                            :style="getItemStyle(index, subCategory.items.length)">
+                            <Link v-if="item.name" :href="item.url">{{ item.name }}</Link>
+                        </li>
+                    </ul>
+                </div>
             </div>
-        </div>
+        </template>
     </div>
 </template>
 
 <script setup>
+import { ref } from 'vue';
 import { Link } from '@inertiajs/vue3';
-import { defineProps, computed } from "vue";
 
 const props = defineProps({
     categories: {
@@ -40,37 +45,20 @@ const props = defineProps({
     },
 });
 
+const expanded = ref({});
+
+const toggle = (index) => {
+    expanded.value[index] = !expanded.value[index];
+};
+
 const getBackgroundColor = (index) => ({
     backgroundColor: Math.floor(index / 3) % 2 === 0 ? '#FAFAFB' : '#fff'
 });
 
-const getItemStyle = (index, totalItems) => {
-    const style = {
-        ...getBackgroundColor(index),
-        width: '33.33%',
-        display: 'inline-block'
-    };
-
-    // Handle cases where there are less than 3 items
-    if (totalItems === 2 && index === 1) {
-        style.width = '33.33%';
-    } else if (totalItems === 1) {
-        style.width = '33.33%';
-    }
-
-    return style;
-};
-
-const structuredCategories = computed(() => {
-    return props.categories.map(category => ({
-        name: category.name,
-        url: category.url,
-        items: category.items.map(subCategory => ({
-            name: subCategory.name,
-            url: subCategory.url,
-            items: subCategory.items || []
-        }))
-    }));
+const getItemStyle = (index, totalItems) => ({
+    ...getBackgroundColor(index),
+    width: '33.33%',
+    display: 'inline-block'
 });
 </script>
 
