@@ -165,7 +165,6 @@ Route::middleware([
 
 
     
-
     Route::get('/get-attributes/{headingId}', [ProductHeaderController::class, 'getAttributes']);
     Route::post('/add-heading', [ProductHeaderController::class, 'addHeading']);
     Route::post('/add-attribute', [ProductAttributeController::class, 'addAttribute']);

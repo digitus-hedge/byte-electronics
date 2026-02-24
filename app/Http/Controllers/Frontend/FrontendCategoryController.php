@@ -12,182 +12,183 @@ use Carbon\Carbon;
 use Illuminate\Container\Attributes\Log;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+
 class FrontendCategoryController extends Controller
 {
 
-public function index()
-{
+    public function index()
+    {
 
-    $data = Cache::remember('category_list_page', 86400, function () {
-        $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
+        $data = Cache::remember('category_list_page', 86400, function () {
+            $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
 
-        $categories = Category::select('id', 'name', 'slug', 'status')->get();
-        $categoryIds = $categories->pluck('id');
+            $categories = Category::select('id', 'name', 'slug', 'status')->get();
+            $categoryIds = $categories->pluck('id');
 
-        if ($categoryIds->isEmpty()) {
-            return ['categories' => [], 'brands' => []];
-        }
-
-        $allSubs = DB::table('sub_categories')
-            ->select('id', 'category_id', 'name', 'slug', 'parent_id', 'status', 'created_at')
-            ->whereNull('deleted_at')
-            ->get();
-
-        $topLevel = [];
-        $childrenByParent = [];
-
-        foreach ($allSubs as $sub) {
-            if ($sub->parent_id == $sub->category_id) {
-                $topLevel[$sub->category_id][] = $sub;
-            } else {
-                $childrenByParent[$sub->parent_id][] = $sub;
+            if ($categoryIds->isEmpty()) {
+                return ['categories' => [], 'brands' => []];
             }
-        }
 
-        // $productInfo = DB::select("
-        //     SELECT category_id, brand_id,
-        //         MAX(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS has_new
-        //     FROM products FORCE INDEX (products_category_brand_index)
-        //     WHERE deleted_at IS NULL AND status = 1
-        //     GROUP BY category_id, brand_id
-        // ", [$thirtyDaysAgo]);
-        $productInfo = DB::select("CALL GetCategoryBrandSummary()");
-$productInfo = collect($productInfo);
+            $allSubs = DB::table('sub_categories')
+                ->select('id', 'category_id', 'name', 'slug', 'parent_id', 'status', 'created_at')
+                ->whereNull('deleted_at')
+                ->get();
 
-        $brandsByCategory = [];
-        $categoriesWithNewProducts = [];
-        $allBrandIds = [];
+            $topLevel = [];
+            $childrenByParent = [];
 
-        foreach ($productInfo as $row) {
-            $catId = $row->category_id;
-            $brandId = $row->brand_id;
-            $brandsByCategory[$catId][$brandId] = true;
-            $allBrandIds[$brandId] = true;
-            if ($row->has_new == 1) {
-                $categoriesWithNewProducts[$catId] = true;
+            foreach ($allSubs as $sub) {
+                if ($sub->parent_id == $sub->category_id) {
+                    $topLevel[$sub->category_id][] = $sub;
+                } else {
+                    $childrenByParent[$sub->parent_id][] = $sub;
+                }
             }
-        }
 
-        $brands = DB::table('brands')
-            ->where('status', 1)
-            ->whereIn('id', array_keys($allBrandIds))
-            ->select('id', 'name')
-            ->get()
-            ->map(fn($b) => ['id' => $b->id, 'name' => $b->name])
-            ->toArray();
+            // $productInfo = DB::select("
+            //     SELECT category_id, brand_id,
+            //         MAX(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) AS has_new
+            //     FROM products FORCE INDEX (products_category_brand_index)
+            //     WHERE deleted_at IS NULL AND status = 1
+            //     GROUP BY category_id, brand_id
+            // ", [$thirtyDaysAgo]);
+            $productInfo = DB::select("CALL GetCategoryBrandSummary()");
+            $productInfo = collect($productInfo);
 
-        $dataArray = [];
-        foreach ($categories as $category) {
-            $subs = $topLevel[$category->id] ?? [];
-            $catBrands = isset($brandsByCategory[$category->id])
-                ? array_map('intval', array_keys($brandsByCategory[$category->id]))
-                : [];
+            $brandsByCategory = [];
+            $categoriesWithNewProducts = [];
+            $allBrandIds = [];
 
-            $dataArray[] = [
-                'name'        => $category->name,
-                'url'         => 'details/' . $category->slug,
-                'active'      => $category->status == 1,
-                'newProducts' => isset($categoriesWithNewProducts[$category->id]),
-                'brand_ids'   => $catBrands,
-                'items'       => array_map(function ($sub) use ($category, &$childrenByParent, $thirtyDaysAgo) {
-                    return $this->buildSubTree($sub, $category, $childrenByParent, $thirtyDaysAgo);
-                }, $subs),
-            ];
-        }
+            foreach ($productInfo as $row) {
+                $catId = $row->category_id;
+                $brandId = $row->brand_id;
+                $brandsByCategory[$catId][$brandId] = true;
+                $allBrandIds[$brandId] = true;
+                if ($row->has_new == 1) {
+                    $categoriesWithNewProducts[$catId] = true;
+                }
+            }
 
-        return ['categories' => $dataArray, 'brands' => $brands];
-    });
+            $brands = DB::table('brands')
+                ->where('status', 1)
+                ->whereIn('id', array_keys($allBrandIds))
+                ->select('id', 'name')
+                ->get()
+                ->map(fn($b) => ['id' => $b->id, 'name' => $b->name])
+                ->toArray();
 
-    return Inertia::render('Category/CategoryList', $data);
-}
+            $dataArray = [];
+            foreach ($categories as $category) {
+                $subs = $topLevel[$category->id] ?? [];
+                $catBrands = isset($brandsByCategory[$category->id])
+                    ? array_map('intval', array_keys($brandsByCategory[$category->id]))
+                    : [];
 
-private function buildSubTree($sub, $category, &$childrenByParent, $thirtyDaysAgo)
-{
-    $children = $childrenByParent[$sub->id] ?? [];
+                $dataArray[] = [
+                    'name'        => $category->name,
+                    'url'         => 'details/' . $category->slug,
+                    'active'      => $category->status == 1,
+                    'newProducts' => isset($categoriesWithNewProducts[$category->id]),
+                    'brand_ids'   => $catBrands,
+                    'items'       => array_map(function ($sub) use ($category, &$childrenByParent, $thirtyDaysAgo) {
+                        return $this->buildSubTree($sub, $category, $childrenByParent, $thirtyDaysAgo);
+                    }, $subs),
+                ];
+            }
 
-    return [
-        'name'        => $sub->name,
-        'url'         => 'details/' . $category->slug . '/' . $sub->slug,
-        'active'      => $sub->status == 1,
-        'newProducts' => $sub->created_at >= $thirtyDaysAgo,
-        'brand_ids'   => [],
-        'items'       => array_map(function ($child) use ($category, &$childrenByParent, $thirtyDaysAgo) {
-            return $this->buildSubTree($child, $category, $childrenByParent, $thirtyDaysAgo);
-        }, $children),
-    ];
-}
+            return ['categories' => $dataArray, 'brands' => $brands];
+        });
+
+        return Inertia::render('Category/CategoryList', $data);
+    }
+
+    private function buildSubTree($sub, $category, &$childrenByParent, $thirtyDaysAgo)
+    {
+        $children = $childrenByParent[$sub->id] ?? [];
+
+        return [
+            'name'        => $sub->name,
+            'url'         => 'details/' . $category->slug . '/' . $sub->slug,
+            'active'      => $sub->status == 1,
+            'newProducts' => $sub->created_at >= $thirtyDaysAgo,
+            'brand_ids'   => [],
+            'items'       => array_map(function ($child) use ($category, &$childrenByParent, $thirtyDaysAgo) {
+                return $this->buildSubTree($child, $category, $childrenByParent, $thirtyDaysAgo);
+            }, $children),
+        ];
+    }
 
     public function index_cache()
-{
+    {
 
-//Just make sure you clear the cache when products or categories are updated:
-//Cache::forget('category_list_page_data');
-    $data = Cache::remember('category_list_page_data', 86400, function () {
-        $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
+        //Just make sure you clear the cache when products or categories are updated:
+        //Cache::forget('category_list_page_data');
+        $data = Cache::remember('category_list_page_data', 86400, function () {
+            $thirtyDaysAgo = Carbon::now()->subDays(30)->toDateTimeString();
 
-        $categories = Category::select('id', 'name', 'slug', 'status')
-            ->with([
-                'subcategories' => fn($q) => $q->whereNull('parent_id')
-                    ->select('id', 'category_id', 'name', 'slug', 'parent_id'),
-                'subcategories.children' => fn($q) =>
+            $categories = Category::select('id', 'name', 'slug', 'status')
+                ->with([
+                    'subcategories' => fn($q) => $q->whereNull('parent_id')
+                        ->select('id', 'category_id', 'name', 'slug', 'parent_id'),
+                    'subcategories.children' => fn($q) =>
                     $q->select('id', 'category_id', 'name', 'slug', 'parent_id', 'sub_category_id'),
-                'subcategories.children.children' => fn($q) =>
+                    'subcategories.children.children' => fn($q) =>
                     $q->select('id', 'category_id', 'name', 'slug', 'parent_id', 'sub_category_id'),
-            ])->get();
+                ])->get();
 
-        $categoryIds = $categories->pluck('id');
+            $categoryIds = $categories->pluck('id');
 
-        if ($categoryIds->isEmpty()) {
-            return ['categories' => [], 'brands' => []];
-        }
+            if ($categoryIds->isEmpty()) {
+                return ['categories' => [], 'brands' => []];
+            }
 
-        $productInfo = DB::table('products')
-            ->select(
-                'category_id',
-                'brand_id',
-                DB::raw("MAX(CASE WHEN created_at >= '{$thirtyDaysAgo}' THEN 1 ELSE 0 END) AS has_new")
-            )
-            ->whereIn('category_id', $categoryIds)
-            ->whereNull('deleted_at')
-            ->where('status', 1)
-            ->groupBy('category_id', 'brand_id')
-            ->get();
+            $productInfo = DB::table('products')
+                ->select(
+                    'category_id',
+                    'brand_id',
+                    DB::raw("MAX(CASE WHEN created_at >= '{$thirtyDaysAgo}' THEN 1 ELSE 0 END) AS has_new")
+                )
+                ->whereIn('category_id', $categoryIds)
+                ->whereNull('deleted_at')
+                ->where('status', 1)
+                ->groupBy('category_id', 'brand_id')
+                ->get();
 
-        $brandsByCategory = $productInfo->groupBy('category_id');
-        $categoriesWithNewProducts = $productInfo
-            ->where('has_new', 1)
-            ->pluck('category_id')
-            ->unique()
-            ->flip()
-            ->toArray();
+            $brandsByCategory = $productInfo->groupBy('category_id');
+            $categoriesWithNewProducts = $productInfo
+                ->where('has_new', 1)
+                ->pluck('category_id')
+                ->unique()
+                ->flip()
+                ->toArray();
 
-        $relevantBrandIds = $productInfo->pluck('brand_id')->unique()->toArray();
-        $brands = Brands::where('status', 1)
-            ->whereIn('id', $relevantBrandIds)
-            ->select('id', 'name')
-            ->get()
-            ->toArray();
+            $relevantBrandIds = $productInfo->pluck('brand_id')->unique()->toArray();
+            $brands = Brands::where('status', 1)
+                ->whereIn('id', $relevantBrandIds)
+                ->select('id', 'name')
+                ->get()
+                ->toArray();
 
-        $dataArray = $categories->map(function ($category) use ($brandsByCategory, $categoriesWithNewProducts) {
-            return [
-                'name'        => $category->name,
-                'url'         => 'details/' . $category->slug,
-                'active'      => $category->status == 1,
-                'newProducts' => isset($categoriesWithNewProducts[$category->id]),
-                'brand_ids'   => isset($brandsByCategory[$category->id])
-                    ? $brandsByCategory[$category->id]->pluck('brand_id')->unique()->values()->toArray()
-                    : [],
-                'items'       => $category->subcategories->map(function ($subcategory) use ($category) {
-                    return $this->formatSubcategory($subcategory, $category);
-                })->toArray(),
-            ];
-        })->toArray();
+            $dataArray = $categories->map(function ($category) use ($brandsByCategory, $categoriesWithNewProducts) {
+                return [
+                    'name'        => $category->name,
+                    'url'         => 'details/' . $category->slug,
+                    'active'      => $category->status == 1,
+                    'newProducts' => isset($categoriesWithNewProducts[$category->id]),
+                    'brand_ids'   => isset($brandsByCategory[$category->id])
+                        ? $brandsByCategory[$category->id]->pluck('brand_id')->unique()->values()->toArray()
+                        : [],
+                    'items'       => $category->subcategories->map(function ($subcategory) use ($category) {
+                        return $this->formatSubcategory($subcategory, $category);
+                    })->toArray(),
+                ];
+            })->toArray();
 
-        return ['categories' => $dataArray, 'brands' => $brands];
-    });
+            return ['categories' => $dataArray, 'brands' => $brands];
+        });
 
-    return Inertia::render('Category/CategoryList', $data);
-}
+        return Inertia::render('Category/CategoryList', $data);
+    }
 
 
 
@@ -226,23 +227,23 @@ private function buildSubTree($sub, $category, &$childrenByParent, $thirtyDaysAg
     }
 
 
-private function formatSubcategory($subcategory, $category)
-{
-    $data = [
-        'name'        => $subcategory->name,
-        'url'         => 'details/' . $category->slug . '/' . $subcategory->slug,
-        'items'       => [],
-        'active'      => $subcategory->status == 1,
-        'newProducts' => $subcategory->created_at->diffInDays() <= 30,
-        'brand_ids'   => [], // Don't load per subcategory — too expensive
-    ];
+    private function formatSubcategory($subcategory, $category)
+    {
+        $data = [
+            'name'        => $subcategory->name,
+            'url'         => 'details/' . $category->slug . '/' . $subcategory->slug,
+            'items'       => [],
+            'active'      => $subcategory->status == 1,
+            'newProducts' => $subcategory->created_at->diffInDays() <= 30,
+            'brand_ids'   => [], // Don't load per subcategory — too expensive
+        ];
 
-    foreach ($subcategory->children as $childSubcategory) {
-        $data['items'][] = $this->formatSubcategory($childSubcategory, $category);
+        foreach ($subcategory->children as $childSubcategory) {
+            $data['items'][] = $this->formatSubcategory($childSubcategory, $category);
+        }
+
+        return $data;
     }
-
-    return $data;
-}
 
 
     // private function formatSubcategory($subcategory, $category)
@@ -267,120 +268,181 @@ private function formatSubcategory($subcategory, $category)
 
     public function show($any)
     {
-        // Split the URL path into slugs
-        $slugs      = explode('/', $any);
-        $parent     = null;
-        $path       = '';
-        $categories = [];
 
-        foreach ($slugs as $index => $slug) {
-            if ($index === 0) {
-                // First level must be a Category
-                $parent = Category::where('slug', $slug)->first();
-            } else {
-                // Debug: Output the parent and slug being processed
-                // Log::info("Processing slug: $slug at level: $index", [
-                //     'parent' => $parent,
-                //     'query'  => SubCategory::where('slug', $slug)
-                //         ->where(function ($query) use ($parent) {
-                //             if ($parent instanceof Category) {
-                //                 // If parent is a Category, fetch subcategory with matching category_id
-                //                 $query->where('category_id', $parent->id);
-                //             } else {
-                //                 // If parent is a SubCategory, fetch subcategory with matching parent_id
-                //                 $query->where('parent_id', $parent->id);
-                //             }
-                //         })
-                //         ->whereNull('deleted_at')
-                //         ->toSql(), // Output the raw SQL query
-                // ]);
+        // $slugs      = explode('/', $any);
+        // $parent     = null;
+        // $path       = '';
+        // $categories = [];
 
-                // Find the correct SubCategory based on hierarchy
-                $parent = SubCategory::where('slug', $slug)
-                    ->where(function ($query) use ($parent) {
-                        if ($parent instanceof Category) {
-                            // If parent is a Category, fetch subcategory with matching category_id
-                            $query->where('category_id', $parent->id);
-                        } else {
-                            // If parent is a SubCategory, fetch subcategory with matching parent_id
-                            $query->where('parent_id', $parent->id);
-                        }
-                    })
-                    ->whereNull('deleted_at')
-                    ->first();
+        // foreach ($slugs as $index => $slug) {
+        //     if ($index === 0) {
 
-                // Debug: Output the result of the query
-                \Log::info("SubCategory query result:", ['parent' => $parent]);
-            }
+        //         $parent = Category::where('slug', $slug)->first();
+        //     } 
 
-            // If no parent is found, abort with a 404 error
-            if (! $parent) {
-                \Log::error("Category/Subcategory not found at level: $index", [
-                    'slug'   => $slug,
-                    'parent' => $parent,
-                ]);
-                abort(404, 'Category or Subcategory not found');
-            }
+        //     else 
+        //     {
 
-            // Append to path
-            $path .= '/' . $parent->slug;
+        //         $parent = SubCategory::where('slug', $slug)
+        //             ->where(function ($query) use ($parent) {
+        //                 if ($parent instanceof Category) {
 
-            // Store categories/subcategories for frontend
-            $categories[] = [
-                'id'   => $parent->id,
-                'name' => $parent->name,
-                'type' => 'category',
-                'url'  => url("products/filter?productType%5B0%5D=" . $parent->id),
-            ];
-        }
+        //                     $query->where('category_id', $parent->id);
+        //                 } else {
+        //                     $query->where('parent_id', $parent->id);
+        //                 }
+        //             })
+        //             ->whereNull('deleted_at')
+        //             ->first();
 
-        // Get the final category or subcategory (last parent in the loop)
-        $finalEntity = $parent;
-        // Determine the image path based on the type of the final entity
-        $image = $finalEntity instanceof Category
-            ? asset('uploads/category/' . $finalEntity->file_name)
-            : asset($finalEntity->image_sub_cat);
-        // dd($image);
-        // Fetch subcategories based on the type of the final entity
-        $subCategories = $finalEntity instanceof Category
-            ? $finalEntity->subcategories()->whereNull('deleted_at')->get()
-            : $finalEntity->children()->whereNull('deleted_at')->get();
+        //         \Log::info("SubCategory query result:", ['parent' => $parent]);
+        //     }
 
-        // Prepare the categories array for the frontend
-        $categoriesForFrontend = $subCategories->isEmpty()
-            ? ""
-            : $subCategories->map(function ($subCategory) {
-                // dd($subCategory);
-                return [
-                    'id'   => $subCategory->id,
-                    'name' => $subCategory->name,
-                    'type' => 'subcategory',
-                    'url'  => url("products/filter?productType%5B0%5D=" . $subCategory->parent_id),
-                ];
-            });
-        $filterUrl = $subCategories->isEmpty()
-            ? url("products/filter?productType%5B0%5D=" . $categories[0]['id']) // Category URL if no subcategories
-            : [
-                'category'    => url("products/filter?productType%5B0%5D=" . $categories[0]['id'] . '&subCategory%5B0%5D=' . $finalEntity->id),
-            ];
-        // dd([
+        //     if (! $parent) {
+        //         \Log::error("Category/Subcategory not found at level: $index", [
+        //             'slug'   => $slug,
+        //             'parent' => $parent,
+        //         ]);
+        //         abort(404, 'Category or Subcategory not found');
+        //     }
+
+        //     $path .= '/' . $parent->slug;
+
+        //     $categories[] = [
+        //         'id'   => $parent->id,
+        //         'name' => $parent->name,
+        //         'type' => 'category',
+        //         'url'  => url("products/filter?productType%5B0%5D=" . $parent->id),
+        //     ];
+        // }
+
+        // $finalEntity = $parent;
+
+        // $image = $finalEntity instanceof Category
+        //     ? asset('uploads/category/' . $finalEntity->file_name)
+        //     : asset($finalEntity->image_sub_cat);
+
+
+        // $subCategories = $finalEntity instanceof Category
+        //     ? $finalEntity->subcategories()->whereNull('deleted_at')->get()
+        //     : $finalEntity->children()->whereNull('deleted_at')->get();
+
+        // $categoriesForFrontend = $subCategories->isEmpty()
+        //     ? ""
+        //     : $subCategories->map(function ($subCategory) {
+        //         return [
+        //             'id'   => $subCategory->id,
+        //             'name' => $subCategory->name,
+        //             'type' => 'subcategory',
+        //             'url'  => url("products/filter?productType%5B0%5D=" . $subCategory->parent_id),
+        //         ];
+        //     });
+        // $filterUrl = $subCategories->isEmpty()
+        //     ? url("products/filter?productType%5B0%5D=" . $categories[0]['id']) 
+        //     : [
+        //         'category'    => url("products/filter?productType%5B0%5D=" . $categories[0]['id'] . '&subCategory%5B0%5D=' . $finalEntity->id),
+        //     ];
+
+        // return Inertia::render('Category/Details', [
         //     'image'           => $image,
         //     'title'           => $finalEntity->name,
         //     'description'     => $finalEntity->description,
         //     'current_categories' => $categoriesForFrontend,
         //     'subCategories'   => $subCategories,
-        //     // 'productCategory' => $categories[0]['url'],
         //     'filterUrl'       => $filterUrl,
         // ]);
-        // Return the Inertia.js response with the desired format
+
+
+        $slugs = explode('/', $any);
+        $parent = null;
+        $categories = [];
+
+        foreach ($slugs as $index => $slug) {
+
+            if ($index === 0) {
+                $parent = Category::select('id', 'name', 'slug', 'file_name', 'description')
+                    ->where('slug', $slug)
+                    ->first();
+            } else {
+                $parent = SubCategory::select('id', 'name', 'slug', 'parent_id', 'category_id', 'image_sub_cat', 'description')
+                    ->where('slug', $slug)
+                    ->whereNull('deleted_at')
+                    ->where(function ($query) use ($parent) {
+                        $query->when(
+                            $parent instanceof Category,
+                            fn($q) => $q->where('category_id', $parent->id),
+                            fn($q) => $q->where('parent_id', $parent->id)
+                        );
+                    })
+                    ->first();
+            }
+
+            if (!$parent) {
+                abort(404);
+            }
+
+            $categories[] = [
+                'id'   => $parent->id,
+                'name' => $parent->name,
+                'type' => $parent instanceof Category ? 'category' : 'subcategory',
+                'url'  => url('products/filter') . '?' . http_build_query(
+                    $parent instanceof Category
+                        ? ['productType' => [$parent->id]]
+                        : [
+                            'productType' => [$parent->category_id],
+                            'subCategory' => [$parent->id]
+                        ]
+                ),
+            ];
+        }
+
+        $finalEntity = $parent;
+
+        $subCategories = $finalEntity instanceof Category
+            ? $finalEntity->subcategories()
+            ->select('id', 'name', 'parent_id')
+            ->whereNull('deleted_at')
+            ->get()
+            : $finalEntity->children()
+            ->select('id', 'name', 'parent_id')
+            ->whereNull('deleted_at')
+            ->get();
+
+
+        $image = $finalEntity instanceof Category
+            ? asset("uploads/category/{$finalEntity->file_name}")
+            : asset($finalEntity->image_sub_cat);
+
+        $categoriesForFrontend = $subCategories->isEmpty()
+            ? ""
+            : $subCategories->map(function ($sub) use ($categories) {
+                return [
+                    'id'   => $sub->id,
+                    'name' => $sub->name,
+                    'type' => 'subcategory',
+                    'url'  => url('products/filter') . '?' . http_build_query([
+                        'productType' => [$categories[0]['id']],
+                        'subCategory' => [$sub->id]
+                    ]),
+                ];
+            });
+
+        $filterUrl = $subCategories->isEmpty()
+            ? url('products/filter') . '?' . http_build_query([
+                'productType' => [$categories[0]['id']]
+            ])
+            : url('products/filter') . '?' . http_build_query([
+                'productType' => [$categories[0]['id']],
+                'subCategory' => [$finalEntity->id]
+            ]);
+
         return Inertia::render('Category/Details', [
-            'image'           => $image,
-            'title'           => $finalEntity->name,
-            'description'     => $finalEntity->description,
+            'image'              => $image,
+            'title'              => $finalEntity->name,
+            'description'        => $finalEntity->description,
             'current_categories' => $categoriesForFrontend,
-            'subCategories'   => $subCategories,
-            // 'productCategory' => $categories[0]['url'],
-            'filterUrl'       => $filterUrl,
+            'subCategories'      => $subCategories,
+            'filterUrl'          => $filterUrl,
         ]);
     }
 

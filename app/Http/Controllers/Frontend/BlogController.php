@@ -70,7 +70,6 @@ class BlogController extends Controller
         $banners = $query->get() ?? collect([]);
         Session::put('current_page',request()->fullUrl());
 
-
         $blogs = Blog::latest()->get(); // Fetch all blogs sorted by latest
 
         // $firstBlog = $blogs->first();
