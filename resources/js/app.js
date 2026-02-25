@@ -8,7 +8,9 @@ import { createInertiaApp,router } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import { ZiggyVue } from '../../vendor/tightenco/ziggy';
 import topbar from 'topbar';
-const appName = import.meta.env.VITE_APP_NAME || 'Byte-Electronics';
+//const appName = import.meta.env.VITE_APP_NAME || 'Byte-Electronics';
+const appName =  'Byte-Electronics';
+
 
 topbar.config({
     barThickness: 4,
