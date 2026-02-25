@@ -1,7 +1,29 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { router } from '@inertiajs/vue3';
+import { onMounted, onBeforeUnmount } from 'vue'
 
+let scrollInterval = null
+
+onMounted(() => {
+    const container = document.querySelector('.manufacturers-grid')
+
+    if (!container) return
+
+    scrollInterval = setInterval(() => {
+        container.scrollLeft += 2
+
+        if (container.scrollLeft + container.clientWidth >= container.scrollWidth) {
+            container.scrollLeft = 0
+        }
+    }, 20) // lower = faster
+})
+
+onBeforeUnmount(() => {
+    if (scrollInterval) {
+        clearInterval(scrollInterval)
+    }
+})
 defineProps({
     categoriesShow: {
         type: Array,
@@ -25,7 +47,7 @@ defineProps({
             <h3 class="m-0 needHelp">NEED HELP?</h3>
             <div class="d-flex align-items-center gap-2">
                 <i class="bi bi-chat-fill"></i>
-                <a href="https://wa.me/971555316164"  target="_blank" rel="noopener noreferrer"
+                <a href="https://wa.me/971555316164" target="_blank" rel="noopener noreferrer"
                     class="d-flex align-items-center text-decoration-none" style="color: #000000;">CHAT NOW</a>
             </div>
         </div>
@@ -38,27 +60,20 @@ defineProps({
         </div> -->
 
         <div class="manufacturers-grid text-center mb-4">
-            <Link
-                v-for="(brand, index) in Brands"
-                :key="index"
-                :href="`brands/details/${brand.slug}`"
-                class="manufacturer-link"
-            >
-        <!-- <pre>{{ brand.file_name }}</pre> -->
+            <Link v-for="(brand, index) in Brands" :key="index" :href="`brands/details/${brand.slug}`"
+                class="manufacturer-link">
+                <!-- <pre>{{ brand.file_name }}</pre> -->
 
-                <img
-                    :src="`${imageBrandUrl}/${brand.file_name} `"
-                    class="img-fluid manufacturer-logo"
-                >
+                <img :src="`${imageBrandUrl}/${brand.file_name} `" class="img-fluid manufacturer-logo">
             </Link>
         </div>
         <div class="featCategory mt-4 d-flex flex-wrap justify-content-center text-center">
             <div v-for="(category, index) in categoriesShow" :key="index" class="" style="width: 150px;">
                 <Link :href="`/categories/details/${category.slug}`"
                     class="text-decoration-none text-dark d-flex flex-column align-items-center">
-                <img :src="`${imageUrl}/${category.file_name || 'default.png'}`" class="img-fluid"
-                    :alt="category.name" />
-                <span class="d-block mt-2">{{ category.name }}</span>
+                    <img :src="`${imageUrl}/${category.file_name || 'default.png'}`" class="img-fluid"
+                        :alt="category.name" />
+                    <span class="d-block mt-2">{{ category.name }}</span>
                 </Link>
             </div>
         </div>
@@ -78,6 +93,7 @@ defineProps({
 .featCategory {
     gap: 1rem;
 }
+
 .manufacturers-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
@@ -86,6 +102,26 @@ defineProps({
     justify-items: center;
     max-width: 1200px;
     margin: 0 auto;
+}
+
+@media (max-width: 576px) {
+    .manufacturers-grid {
+        display: flex;
+        overflow-x: auto;
+        scroll-behavior: smooth;
+        -webkit-overflow-scrolling: touch;
+        gap: 1rem;
+        padding: 0 1rem;
+    }
+
+    .manufacturer-link {
+        flex: 0 0 auto;
+        width: 120px;
+    }
+
+    .manufacturers-grid::-webkit-scrollbar {
+        display: none;
+    }
 }
 
 .manufacturer-link {
@@ -104,17 +140,5 @@ defineProps({
     max-height: 50px;
     width: auto;
     object-fit: contain;
-}
-
-@media (max-width: 992px) {
-    .manufacturers-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
-}
-
-@media (max-width: 576px) {
-    .manufacturers-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
 }
 </style>

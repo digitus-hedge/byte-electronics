@@ -200,15 +200,15 @@ const myFunction = (element) => {
         <nav class="navbar modern-navbar header">
             <div class="container d-flex align-items-center justify-content-between">
                 <Link href="/">
-                <img src="/assets/images/BYTE_LOGO.webp" alt="Logo" class="modern-logo" />
+                    <img src="/assets/images/BYTE_LOGO.webp" alt="Logo" class="modern-logo" />
                 </Link>
                 <div class="mobile-screen" style="display: none;">
                     <Link href="tel:+97142962030" class="phone-link d-flex align-items-center">
-                    <img src="/assets/images/Headset.png" alt="Headset" class="phone-icon" style="height: 40px;" />
-                    <div class="phone-info d-flex flex-column">
-                        <span class="contact-text">Need Help?</span>
-                        <span class="contact-no" style="font-weight: 600;font-size: 13px;">+971 42 962 030</span>
-                    </div>
+                        <img src="/assets/images/Headset.png" alt="Headset" class="phone-icon" style="height: 40px;" />
+                        <div class="phone-info d-flex flex-column">
+                            <span class="contact-text">Need Help?</span>
+                            <span class="contact-no" style="font-weight: 600;font-size: 13px;">+971 42 962 030</span>
+                        </div>
                     </Link>
                 </div>
                 <form class="combined-search-category"
@@ -249,6 +249,11 @@ const myFunction = (element) => {
                             <!-- Search button -->
                             <button class="btn search-btn" type="submit">
                                 <i class="fas fa-search"></i>
+                            </button>
+                            <button class="navbar-toggler d-lg-none" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false"
+                                aria-label="Toggle navigation">
+                                <span class="navbar-toggler-icon"></span>
                             </button>
                             <!-- Search results dropdown -->
                             <div class="search-results-dropdown"
@@ -333,10 +338,10 @@ const myFunction = (element) => {
         </nav>
         <nav class="navbar modern-navbar navbar-expand-lg navbar-light under-navbar" style="padding: 0px 2rem;">
             <div class="container-fluid container d-flex align-items-center justify-content-between">
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+                <!-- <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
                     aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
-                </button>
+                </button> -->
                 <div class="collapse navbar-collapse" id="navbarNav">
                     <ul class="navbar-nav me-auto mb-2 mb-lg-0 w-70 d-flex" style="gap: 20px;">
                         <li class="nav-item dropdown d-flex align-items-center" style="border-right:1px solid #E9E9E9;">
@@ -355,13 +360,13 @@ const myFunction = (element) => {
                                 <li v-for="product in products" :key="product.name" class="dropdown-item-wrapper">
                                     <Link class="dropdown-item d-flex justify-content-between align-items-center"
                                         :href="product.url">
-                                    {{ product.name }}
-                                    <i class="bi bi-chevron-right ms-2" style="font-size: 12px;"></i>
+                                        {{ product.name }}
+                                        <i class="bi bi-chevron-right ms-2" style="font-size: 12px;"></i>
                                     </Link>
                                     <ul v-if="product.subcategories.length" class="dropdown-menu sub-dropdown">
                                         <li v-for="subcategory in product.subcategories" :key="subcategory.id">
                                             <Link class="dropdown-item" :href="subcategory.url">
-                                            {{ subcategory.name }}
+                                                {{ subcategory.name }}
                                             </Link>
                                         </li>
                                     </ul>
@@ -386,10 +391,10 @@ const myFunction = (element) => {
                         </li>
                     </ul>
                     <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
-                        <li class="nav-item d-flex align-items-center d-lg-none">
+                        <li class="nav-item  align-items-center d-none">
                             <template v-if="!isAuthenticated">
                                 <Link class="nav-link login-btn p-0" href="/login">
-                                <i class="bi bi-person-circle me-1"></i>Login
+                                    <i class="bi bi-person-circle me-1"></i>Login
                                 </Link>
                             </template>
                             <template v-else>
@@ -397,10 +402,10 @@ const myFunction = (element) => {
                                     <Link href="#"
                                         class="d-flex align-items-center text-decoration-none dropdown-toggle user-profile-toggle"
                                         id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <div class="user-avatar">
-                                        <i class="bi bi-person-check-fill"></i>
-                                    </div>
-                                    <span class="user-greeting">My Profile</span>
+                                        <div class="user-avatar">
+                                            <i class="bi bi-person-check-fill"></i>
+                                        </div>
+                                        <span class="user-greeting">My Profile</span>
                                     </Link>
                                     <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu"
                                         aria-labelledby="userDropdown">
@@ -420,14 +425,14 @@ const myFunction = (element) => {
                                         </li>
                                         <li>
                                             <Link class="dropdown-item" href="/profile" style="color: #000000;">
-                                            <i class="bi bi-person me-2" style="color: #000000;"></i>
-                                            My Profile
+                                                <i class="bi bi-person me-2" style="color: #000000;"></i>
+                                                My Profile
                                             </Link>
                                         </li>
                                         <li>
                                             <Link class="dropdown-item" href="/my-orders" style="color: #000000;">
-                                            <i class="bi bi-bag me-2" style="color: #000000;"></i>
-                                            My Orders
+                                                <i class="bi bi-bag me-2" style="color: #000000;"></i>
+                                                My Orders
                                             </Link>
                                         </li>
                                         <li>
@@ -436,18 +441,18 @@ const myFunction = (element) => {
                                         <li>
                                             <Link class="dropdown-item text-danger" href="/logout" method="post"
                                                 as="button" style="font-weight: 500;">
-                                            <i class="bi bi-box-arrow-right me-2" style="font-weight: 500;"></i>
-                                            Log Out
+                                                <i class="bi bi-box-arrow-right me-2" style="font-weight: 500;"></i>
+                                                Log Out
                                             </Link>
                                         </li>
                                     </ul>
                                 </div>
                             </template>
                         </li>
-                        <li class="nav-item d-flex align-items-center ms-2 d-lg-none cartIconContainer">
+                        <li class="nav-item  align-items-center ms-2 d-none cartIconContainer">
                             <Link class="nav-link" href="/cart" style="display: flex; align-items: center;">
-                            <i class="bi bi-cart-fill" style="font-size: 20px;"></i>
-                            <span class="ms-1">{{ cartCount }}</span>
+                                <i class="bi bi-cart-fill" style="font-size: 20px;"></i>
+                                <span class="ms-1">{{ cartCount }}</span>
                             </Link>
                         </li>
                     </ul>
@@ -455,8 +460,8 @@ const myFunction = (element) => {
                         <li class="nav-item d-flex align-items-center ms-2 loginBtnContainer">
                             <template v-if="!isAuthenticated">
                                 <Link class="nav-link login-btn " href="/login">
-                                <i class="bi bi-person-circle me-1"></i>
-                                <span>Login</span>
+                                    <i class="bi bi-person-circle me-1"></i>
+                                    <span>Login</span>
                                 </Link>
                             </template>
                             <template v-else>
@@ -464,10 +469,10 @@ const myFunction = (element) => {
                                     <Link href="#"
                                         class="d-flex align-items-center text-decoration-none dropdown-toggle user-profile-toggle"
                                         id="userDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <div class="user-avatar">
-                                        <i class="bi bi-person-check-fill"></i>
-                                    </div>
-                                    <span class="user-greeting">My Profile</span>
+                                        <div class="user-avatar">
+                                            <i class="bi bi-person-check-fill"></i>
+                                        </div>
+                                        <span class="user-greeting">My Profile</span>
                                     </Link>
                                     <ul class="dropdown-menu dropdown-menu-end user-dropdown-menu"
                                         aria-labelledby="userDropdown">
@@ -487,14 +492,14 @@ const myFunction = (element) => {
                                         </li>
                                         <li>
                                             <Link class="dropdown-item" href="/profile" style="color: #000000;">
-                                            <i class="bi bi-person me-2" style="color: #000000;"></i>
-                                            My Profile
+                                                <i class="bi bi-person me-2" style="color: #000000;"></i>
+                                                My Profile
                                             </Link>
                                         </li>
                                         <li>
                                             <Link class="dropdown-item" href="/my-orders" style="color: #000000;">
-                                            <i class="bi bi-bag me-2" style="color: #000000;"></i>
-                                            My Orders
+                                                <i class="bi bi-bag me-2" style="color: #000000;"></i>
+                                                My Orders
                                             </Link>
                                         </li>
                                         <li>
@@ -503,8 +508,8 @@ const myFunction = (element) => {
                                         <li>
                                             <Link class="dropdown-item text-danger" href="/logout" method="post"
                                                 as="button" style="font-weight: 500;">
-                                            <i class="bi bi-box-arrow-right me-2" style="font-weight: 500;"></i>
-                                            Log Out
+                                                <i class="bi bi-box-arrow-right me-2" style="font-weight: 500;"></i>
+                                                Log Out
                                             </Link>
                                         </li>
                                     </ul>
@@ -513,8 +518,8 @@ const myFunction = (element) => {
                         </li>
                         <li class="nav-item" style="display:flex;align-items: center;">
                             <Link class="nav-link" href="/cart" style="display: flex;align-items: center;">
-                            <i class="bi bi-cart-fill" style="font-size: 20px;"></i>
-                            <span class=""> My Cart ({{ cartCount }})</span>
+                                <i class="bi bi-cart-fill" style="font-size: 20px;"></i>
+                                <span class=""> My Cart ({{ cartCount }})</span>
                             </Link>
                         </li>
                     </ul>
@@ -530,6 +535,16 @@ const myFunction = (element) => {
 </template>
 
 <style scoped>
+.search-container .navbar-toggler {
+    border: none;
+    padding: 0.5rem;
+    margin-left: 0.5rem;
+}
+
+.search-container .navbar-toggler:focus {
+    box-shadow: none;
+}
+
 .search-result-header {
     padding: 0.5rem 1rem;
     font-weight: bold;
@@ -974,7 +989,8 @@ p {
     .loginBtnContainer {
         margin-left: 0px !important;
     }
-    .cartIconContainer{
+
+    .cartIconContainer {
         margin-left: 0px !important;
     }
 }

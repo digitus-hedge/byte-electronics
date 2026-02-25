@@ -118,7 +118,7 @@ import { Link } from '@inertiajs/vue3';
 
         <div class="w-100  pt-1">
             <p class="text-center mb-0" style="font-size: 14px;">
-                Copyright © Byte Electronics 2025. All rights reserved.
+                Copyright © Byte Electronics 2026. All rights reserved.
             </p>
         </div>
 
