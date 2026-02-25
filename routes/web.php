@@ -207,6 +207,7 @@ Route::middleware([
     // Route::delete('/currencies/{id}/force-delete', [CurrencyController::class, 'forceDelete'])->name('currencies.forceDelete');
     // Route::resource('/currencies', CurrencyController::class)->except(['show']);
 });
+
 Route::group(['prefix' => 'products', 'as' => 'product.'], function () {
     Route::get('/list', [ProductController::class, 'index'])->name('index');
     // Route::get('/details', [ProductController::class, 'details'])->name('product.details'); //this should be removed or commented after testing
@@ -217,6 +218,7 @@ Route::group(['prefix' => 'products', 'as' => 'product.'], function () {
     Route::post('/request-quote/{productId}', [ProductController::class, 'requestQuote'])
     ->name('productManage.requestQuote');
 });
+
 
 Route::group(['prefix' => 'blogs', 'as' => 'blogs.'], function () {
     Route::get('/', [BlogController::class, 'index'])->name('blogs.index');

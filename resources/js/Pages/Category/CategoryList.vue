@@ -68,10 +68,10 @@ const matchesFilters = (item) => {
 
     const matchesSelectedFilter = !selectedFilter.value ? true :
         selectedFilter.value === 'new-products' ? item.newProducts :
-        selectedFilter.value === 'active' ? item.active :
-        selectedFilter.value.startsWith('brand-') ?
-            Array.isArray(item.brand_ids) && item.brand_ids.includes(parseInt(selectedFilter.value.replace('brand-', ''))) :
-        true;
+            selectedFilter.value === 'active' ? item.active :
+                selectedFilter.value.startsWith('brand-') ?
+                    Array.isArray(item.brand_ids) && item.brand_ids.includes(parseInt(selectedFilter.value.replace('brand-', ''))) :
+                    true;
 
     return matchesSearch && matchesCheckboxes && matchesSelectedFilter;
 };
@@ -93,14 +93,8 @@ const applyFilters = () => {
                     <div class="col-12 col-md-5 mb-3 mb-md-0">
                         <label class="mb-2" for="search-input">Search within results</label>
                         <div class="input-group">
-                            <input
-                                type="text"
-                                class="form-control combined-search-input border"
-                                id="search-input"
-                                v-model="searchQuery"
-                                placeholder="Search here..."
-                                @keyup.enter=""
-                            />
+                            <input type="text" class="form-control combined-search-input border" id="search-input"
+                                v-model="searchQuery" placeholder="Search here..." @keyup.enter="" />
                             <button class="btn custom-bg-color" @click="applyFilters">
                                 <i class="fas fa-search"></i>
                             </button>
@@ -109,13 +103,8 @@ const applyFilters = () => {
                     <div class="col-12 col-md-6">
                         <label class="mb-2" for="select-filter">Filter by Manufacturers</label>
                         <div class="d-flex">
-                            <select
-                                v-model="selectedFilter"
-                                id="select-filter"
-                                class="form-control box-shadow-0"
-                                @change=""
-                                style="font-size: 14px;color:#000000;"
-                            >
+                            <select v-model="selectedFilter" id="select-filter" class="form-control box-shadow-0"
+                                @change="" style="font-size: 14px;color:#000000;">
                                 <option value="" style="font-size: 14px;">Select Filter</option>
                                 <option value="new-products">New Products</option>
                                 <option value="active">Active</option>
@@ -131,23 +120,13 @@ const applyFilters = () => {
                 </div>
                 <div class="col-md-5 pt-3">
                     <div class="row">
-                        <div
-                            v-for="(checkbox, index) in checkboxes"
-                            :key="index"
-                            class="col-12 col-md-4 d-flex align-items-center mb-2 mb-md-0"
-                        >
+                        <div v-for="(checkbox, index) in checkboxes" :key="index"
+                            class="col-12 col-md-4 d-flex align-items-center mb-2 mb-md-0">
                             <div class="form-check text-center">
-                                <input
-                                    type="checkbox"
+                                <input type="checkbox"
                                     class="form-check-input checkbox-lg border border-secondary box-shadow-0"
-                                    :id="checkbox.id"
-                                    v-model="checkbox.checked"
-                                    @change="applyFilters"
-                                >
-                                <label
-                                    class="form-check-label custom-span-style small-text"
-                                    :for="checkbox.id"
-                                >
+                                    :id="checkbox.id" v-model="checkbox.checked" @change="applyFilters">
+                                <label class="form-check-label custom-span-style small-text" :for="checkbox.id">
                                     {{ checkbox.label }}
                                 </label>
                             </div>
@@ -165,11 +144,13 @@ const applyFilters = () => {
     background-color: #ef4137;
     color: white;
 }
+
 select#select-filter:focus {
     outline: none;
     box-shadow: none;
     border-color: #ccc;
 }
+
 .custom-filter-btn-color {
     background: linear-gradient(#EF4137, #892520);
     color: white;
@@ -177,44 +158,55 @@ select#select-filter:focus {
     width: 100%;
     max-width: 120px;
 }
+
 .custom-border-color {
     border-color: #CACACA;
 }
+
 label {
     font-size: 14px;
     font-weight: 500;
 }
+
 .custom-span-style {
     font-size: 14px;
     font-weight: 400;
     color: #000000;
 }
+
 .form-check {
     display: flex;
     align-items: center;
     text-align: center;
     gap: 15px;
 }
+
 .form-check-input {
     margin-bottom: 5px;
     transform: scale(1.2);
 }
+
 @media (max-width: 767px) {
     .custom-filter-btn-color {
         width: 100%;
     }
+
     .form-check {
         align-items: flex-start;
     }
+
     .col-12 {
         padding-right: 0;
         padding-left: 0;
     }
+
     .form-check-label {
         margin-top: 5px;
     }
 }
-.form-control:focus, .form-check-input:focus {
+
+.form-control:focus,
+.form-check-input:focus {
     box-shadow: none !important;
     border-color: #CACACA !important;
 }
