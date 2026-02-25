@@ -446,6 +446,8 @@ class FrontendCategoryController extends Controller
         ]);
     }
 
+    
+
     public function view($categorySlug)
     {
         $category      = Category::where('slug', $categorySlug)->firstOrFail();
