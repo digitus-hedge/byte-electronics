@@ -261,6 +261,26 @@ const removeItemFromCart = (itemId) => {
         <div class="container-fluid container d-flex flex-column align-items-start mt-4 mb-4">
             <Banner :image="ProductBanner" :search="false" :style="{ borderRadius: '10px' }" />
             <div class="py-3 w-100">
+                <!-- Accordion Section - Moved Here -->
+                <div class="container mb-3" style="padding: 0;">
+                    <div class="row">
+                        <div class="col-12 col-md-4">
+                            <Accordion title="Manufacturer" :filterSections="filteredManufacturers"
+                                v-model="filters.manufacturer" :index="0" :openIndex="openIndex"
+                                @update:openIndex="openIndex = $event" @change="applyFilters" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <Accordion title="Categories" :filterSections="filteredProductTypes"
+                                v-model="filters.productType" :index="1" :openIndex="openIndex"
+                                @update:openIndex="openIndex = $event" @change="applyFilters" />
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <Accordion title="Sub Categories" :filterSections="filteredSubCategory"
+                                v-model="filters.subCategory" :index="2" :openIndex="openIndex"
+                                @update:openIndex="openIndex = $event" @change="applyFilters" />
+                        </div>
+                    </div>
+                </div>
                 <div class="container" style="padding: 0; font-size: 14px;">
                     <AttributeFilterNew :productPageFilter="productPageFilter" :filters="filters"
                         @update:filters="updateAttributeFilters" />
@@ -305,57 +325,31 @@ const removeItemFromCart = (itemId) => {
                 </div>
                 <div class="container mt-3" style="padding-left: 0;">
                     <div class="row">
-                        <div class="col-md-3">
-                            <Accordion title="Manufacturer" :filterSections="filteredManufacturers"
-                                v-model="filters.manufacturer" :index="0" :openIndex="openIndex"
-                                @update:openIndex="openIndex = $event" @change="applyFilters" />
-                            <Accordion title="Categories" :filterSections="filteredProductTypes"
-                                v-model="filters.productType" :index="1" :openIndex="openIndex"
-                                @update:openIndex="openIndex = $event" @change="applyFilters" />
-                            <Accordion title="Sub Categories" :filterSections="filteredSubCategory"
-                                v-model="filters.subCategory" :index="2" :openIndex="openIndex"
-                                @update:openIndex="openIndex = $event" @change="applyFilters" />
-                        </div>
-                        <div class="col-md-9">
-                            <div class="row">
-                                <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4 p-1" v-for="product in products.data"
-                                    :key="product.id">
-                                    <div class="product-card-wrapper position-relative h-100">
-                                        <div class="card d-flex flex-column h-100">
-                                            <!-- <div class="image-container position-relative">
-                                                <img :src="getProductImage(product.image)" class="card-img-top" :alt="product.name">
-                                                <div
-                                                    class="hover-overlay d-flex align-items-center justify-content-center">
-                                                    <Link :href="`/products/details/${product.slug}`"
-                                                        class="view-product-btn">
-                                                        <i class="fas fa-eye me-2"></i> View Product
-                                                    </Link>
-                                                </div>
-                                            </div> -->
-                                            <div v-if="product" class="image-container position-relative">
-                                                <img :src="product.image"
-                                                    @error="event => event.target.src = '/assets/images/dummy_product.webp'"
-                                                    class="card-img-top" :alt="product.name" />
-                                                <div
-                                                    class="hover-overlay d-flex align-items-center justify-content-center">
-                                                    <Link :href="`/products/details/${product.slug}`"
-                                                        class="view-product-btn">
-                                                    <i class="fas fa-eye me-2"></i> View Product
-                                                    </Link>
-                                                </div>
-                                            </div>
-                                            <!--  -->
+                        <div class="col-12 col-sm-6 col-md-4 col-lg-3 mb-4 p-1" v-for="product in products.data"
+                            :key="product.id">
+                            <div class="product-card-wrapper position-relative h-100">
+                                <div class="card d-flex flex-column h-100">
 
-                                            <div class="card-body d-flex flex-column">
-                                                <Link :href="`/products/details/${product.slug}`" class="product-title">
-                                                {{ product.name }}
-                                                </Link>
-                                                <button @click="addToCart(product.id)" class="btn w-100 mt-auto"
-                                                    style="color:#EF4137; font-weight: 600;">
-                                                    ADD TO CART
-                                                </button>
-                                            </div>
+                                    <div v-if="product" class="image-container position-relative">
+                                        <img :src="product.image"
+                                            @error="event => event.target.src = '/assets/images/dummy_product.webp'"
+                                            class="card-img-top" :alt="product.name" />
+                                        <div class="hover-overlay d-flex align-items-center justify-content-center">
+                                            <Link :href="`/products/details/${product.slug}`" class="view-product-btn">
+                                                <i class="fas fa-eye me-2"></i> View Product
+                                            </Link>
                                         </div>
+                                    </div>
+                                    <!--  -->
+
+                                    <div class="card-body d-flex flex-column">
+                                        <Link :href="`/products/details/${product.slug}`" class="product-title">
+                                            {{ product.name }}
+                                        </Link>
+                                        <button @click="addToCart(product.id)" class="btn w-100 mt-auto"
+                                            style="color:#EF4137; font-weight: 600;">
+                                            ADD TO CART
+                                        </button>
                                     </div>
                                 </div>
                             </div>

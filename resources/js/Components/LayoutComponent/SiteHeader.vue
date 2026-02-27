@@ -6,6 +6,24 @@ import axios from 'axios';
 const page = usePage();
 const isAuthenticated = computed(() => !!page.props.auth.user);
 
+const closeOtherDropdowns = (exceptDropdown) => {
+    if (exceptDropdown !== 'product') {
+        isDropdownOpenProduct.value = false;
+        isShow.value = '';
+        // Close hamburger animation
+        const hamburger = document.querySelector('.hamburger');
+        if (hamburger) {
+            hamburger.classList.remove('change');
+        }
+    }
+    if (exceptDropdown !== 'category') {
+        isCategoryDropdownOpen.value = false;
+    }
+    if (exceptDropdown !== 'search') {
+        isSearchDropdownOpen.value = false;
+    }
+};
+
 // Ensure categoriesForMenu is always an array
 const categories = computed(() => {
     const cats = page.props.categoriesForMenu;
@@ -53,13 +71,24 @@ const isCategoryActive = (categoryId) => {
 };
 
 const toggleDropdownProducts = () => {
+    closeOtherDropdowns('product');
     isDropdownOpenProduct.value = !isDropdownOpenProduct.value;
     isShow.value = isDropdownOpenProduct.value ? 'show' : '';
 };
 
+// const toggleDropdownProducts = () => {
+//     isDropdownOpenProduct.value = !isDropdownOpenProduct.value;
+//     isShow.value = isDropdownOpenProduct.value ? 'show' : '';
+// };
+
 const toggleCategoryDropdown = () => {
+    closeOtherDropdowns('category');
     isCategoryDropdownOpen.value = !isCategoryDropdownOpen.value;
 };
+
+// const toggleCategoryDropdown = () => {
+//     isCategoryDropdownOpen.value = !isCategoryDropdownOpen.value;
+// };
 
 const props = defineProps({
     cartCount: Number,
@@ -98,6 +127,7 @@ const searchProducts = async () => {
         console.log('Search params:', params);
         const response = await axios.get('/products/search', { params });
         searchResults.value = response.data;
+        closeOtherDropdowns('search');
         isSearchDropdownOpen.value = true;
         console.log('Search Results:', searchResults.value);
     } catch (error) {
@@ -189,10 +219,45 @@ onMounted(() => {
     }
     console.log('Component mounted, selectedCategory:', selectedCategory.value);
 });
+const handleClickOutside = (event) => {
+    // Check if click is outside all dropdowns
+    const isClickInsideProducts = event.target.closest('.nav-item.dropdown');
+    const isClickInsideCategory = event.target.closest('.category-dropdown-prepend');
+    const isClickInsideSearch = event.target.closest('.search-container');
+
+    if (!isClickInsideProducts) {
+        isDropdownOpenProduct.value = false;
+        isShow.value = '';
+    }
+    if (!isClickInsideCategory) {
+        isCategoryDropdownOpen.value = false;
+    }
+    if (!isClickInsideSearch) {
+        isSearchDropdownOpen.value = false;
+    }
+};
+
+onMounted(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const categoryId = urlParams.get('category_id');
+    if (categoryId) {
+        selectedCategory.value = parseInt(categoryId, 10);
+        searchProducts();
+    }
+    console.log('Component mounted, selectedCategory:', selectedCategory.value);
+
+    // Add click event listener
+    document.addEventListener('click', handleClickOutside);
+});
 
 const myFunction = (element) => {
     element.classList.toggle('change');
+    toggleDropdownProducts();
 };
+
+// const myFunction = (element) => {
+//     element.classList.toggle('change');
+// };
 </script>
 
 <template>
@@ -203,13 +268,27 @@ const myFunction = (element) => {
                     <img src="/assets/images/BYTE_LOGO.webp" alt="Logo" class="modern-logo" />
                 </Link>
                 <div class="mobile-screen" style="display: none;">
-                    <Link href="tel:+97142962030" class="phone-link d-flex align-items-center">
-                        <img src="/assets/images/Headset.png" alt="Headset" class="phone-icon" style="height: 40px;" />
-                        <div class="phone-info d-flex flex-column">
-                            <span class="contact-text">Need Help?</span>
-                            <span class="contact-no" style="font-weight: 600;font-size: 13px;">+971 42 962 030</span>
-                        </div>
-                    </Link>
+                    <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                        <Link href="tel:+97142962030" class="phone-link d-flex align-items-center">
+                            <img src="/assets/images/Headset.png" alt="Headset" class="phone-icon"
+                                style="height: 40px;" />
+                            <div class="phone-info d-flex flex-column">
+                                <span class="contact-text">Need Help?</span>
+                                <span class="contact-no" style="font-weight: 600;font-size: 13px;">+971 42 962
+                                    030</span>
+                            </div>
+                        </Link>
+                        <Link href="/login" style="color: #000000;">
+                            <i class="bi bi-person-circle" style="font-size: 24px;"></i>
+                        </Link>
+                        <Link href="/cart" style="color: #000000; position: relative;">
+                            <i class="bi bi-cart-fill" style="font-size: 24px;"></i>
+                            <span
+                                style="position: absolute; top: -5px; right: -8px; background: #EF4137; color: white; border-radius: 50%; width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold;">
+                                {{ cartCount }}
+                            </span>
+                        </Link>
+                    </div>
                 </div>
                 <form class="combined-search-category"
                     @submit.prevent="searchResults.products.length && selectProduct(searchResults.products[0])">
@@ -347,8 +426,8 @@ const myFunction = (element) => {
                         <li class="nav-item dropdown d-flex align-items-center" style="border-right:1px solid #E9E9E9;">
                             <div class="hamburger" @click="myFunction($event.target)">
                                 <div class="bar bar1"></div>
-                                <div class="bar2"></div>
-                                <div class="bar3"></div>
+                                <div class="bar bar2"></div>
+                                <div class="bar bar3"></div>
                             </div>
                             <a class="nav-link dropdown-toggle" :class="{ show: isShow === 'show' }" id="navbarDropdown"
                                 role="button" data-bs-toggle="dropdown" :aria-expanded="isDropdownOpenProduct"
@@ -372,9 +451,6 @@ const myFunction = (element) => {
                                     </ul>
                                 </li>
                             </ul>
-                        </li>
-                        <li>
-                            <Link class="nav-link product-link" href="/products/filter">PRODUCTS</Link>
                         </li>
                         <Link class="nav-link" href="/">HOME</Link>
                         <li>
@@ -456,7 +532,8 @@ const myFunction = (element) => {
                             </Link>
                         </li>
                     </ul>
-                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+                    <!-- Add d-none d-lg-flex to hide on mobile, show on large screens -->
+                    <ul class="navbar-nav ms-auto mb-2 mb-lg-0 d-none d-lg-flex">
                         <li class="nav-item d-flex align-items-center ms-2 loginBtnContainer">
                             <template v-if="!isAuthenticated">
                                 <Link class="nav-link login-btn " href="/login">
@@ -535,6 +612,22 @@ const myFunction = (element) => {
 </template>
 
 <style scoped>
+.nav-item.dropdown {
+    position: relative;
+}
+
+.dropdown-menu-1 {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 1050;
+}
+
+.navbar,
+.navbar-collapse {
+    overflow: visible !important;
+}
+
 .search-container .navbar-toggler {
     border: none;
     padding: 0.5rem;
