@@ -7,12 +7,15 @@
                 <h6>
                     <Link :href="category.url" @click.stop style="color: #ef4137;">{{ category.name }}</Link>
                 </h6>
-                <i :class="activeIndex === categoryIndex ? 'fa fa-angle-down' : 'fa fa-angle-right'" aria-hidden="true"></i>
+                <i :class="activeIndex === categoryIndex ? 'fa fa-angle-down' : 'fa fa-angle-right'"
+                    aria-hidden="true"></i>
             </div>
 
             <!-- Floating dropdown content -->
             <div v-if="activeIndex === categoryIndex" class="dropdown-content">
                 <div v-for="(subCategory, subIndex) in category.items" :key="subIndex" class="w-100 mb-3">
+
+                    <!-- Level 2: use subCategory.url from backend -->
                     <Link :href="subCategory.url">
                         <p class="category-title" style="font-size: 15px; font-weight: 600; color: #212529;">
                             {{ subCategory.name }}
@@ -23,7 +26,11 @@
                         <ul class="categories" style="margin-left: 2rem;">
                             <li v-for="(item, index) in subCategory.items" :key="index"
                                 :style="getItemStyle(index, subCategory.items.length)">
-                                <Link v-if="item.name" :href="item.url">{{ item.name }}</Link>
+
+                                <!-- Level 3: use item.url from backend -->
+                                <Link v-if="item.name" :href="item.url">
+                                    {{ item.name }}
+                                </Link>
                             </li>
                         </ul>
                     </div>
