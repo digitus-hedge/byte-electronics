@@ -330,18 +330,20 @@ onMounted(() => {
                                                 placeholder="Type here..." style="padding: 5px;font-size: 10px;"
                                                 v-model="selectedQuantity" @input="updateUnitPrice" />
                                             <button class="btn"
-                                                style="background:red;color:#fff;padding:5px;font-size: 10px;" type="button"
-                                                @click="handleBuyClick(product.id)">Buy</button>
+                                                style="background:red;color:#fff;padding:5px;font-size: 10px;"
+                                                type="button" @click="handleBuyClick(product.id)">Buy</button>
                                         </div>
                                         <!-- Error Message -->
                                         <div v-if="quantityError" class="text-danger mt-1" style="font-size: 10px;">
                                             {{ quantityError }}
                                         </div>
                                         <!-- Display selected unit price and unit key -->
-                                        <div v-if="selectedUnitPrice" class="mt-2" style="font-size: 12px; color: #000000;">
+                                        <div v-if="selectedUnitPrice" class="mt-2"
+                                            style="font-size: 12px; color: #000000;">
                                             Unit Price: {{ product.currency }} {{ selectedUnitPrice }}
                                         </div>
-                                        <div v-if="selectedUnitKey" class="mt-2" style="font-size: 12px; color: #000000;">
+                                        <div v-if="selectedUnitKey" class="mt-2"
+                                            style="font-size: 12px; color: #000000;">
                                             Unit: {{ selectedUnitKey }}
                                         </div>
                                     </div>
@@ -360,12 +362,15 @@ onMounted(() => {
                                         <thead class="bg-white" style="position: sticky; top: 0; z-index: 10;">
                                             <tr class="border-bottom text-center">
                                                 <th class="p-1"
-                                                    style="font-size: 14px; color: #000000; background: #ffffff;">Qty</th>
-                                                <th class="p-1"
-                                                    style="font-size: 14px; color: #000000; background: #ffffff;">Unit Price
+                                                    style="font-size: 14px; color: #000000; background: #ffffff;">Qty
                                                 </th>
                                                 <th class="p-1"
-                                                    style="font-size: 14px; color: #000000; background: #ffffff;">Ext. Price
+                                                    style="font-size: 14px; color: #000000; background: #ffffff;">Unit
+                                                    Price
+                                                </th>
+                                                <th class="p-1"
+                                                    style="font-size: 14px; color: #000000; background: #ffffff;">Ext.
+                                                    Price
                                                 </th>
                                             </tr>
                                         </thead>
@@ -373,7 +378,8 @@ onMounted(() => {
                                             <template v-for="(priceList, unitKey) in pricing.pricing" :key="unitKey">
                                                 <tr>
                                                     <td colspan="3" class="p-1">
-                                                        <h6 class="fw-bold mb-0" style="color: #000000; font-size: 0.9rem;">
+                                                        <h6 class="fw-bold mb-0"
+                                                            style="color: #000000; font-size: 0.9rem;">
                                                             {{ unitKey }}
                                                         </h6>
                                                     </td>
@@ -391,7 +397,8 @@ onMounted(() => {
                                                         {{ product.currency }} {{ price.unit_price }}
                                                     </td>
                                                     <td class="p-1" style="font-size: 14px; color: #000000;">
-                                                        {{ price.ext_price ? pricing.currency + ' ' + price.ext_price : ''
+                                                        {{ price.ext_price ? pricing.currency + ' ' + price.ext_price :
+                                                            ''
                                                         }}
                                                     </td>
                                                 </tr>
@@ -414,7 +421,8 @@ onMounted(() => {
                         <div class="shadow-sm mt-3">
                             <!-- <ImageCard :image="product.images[0].src" customClass="my-custom-class" innerClass="p-0" /> -->
                         </div>
-                        <FeaturedProducts v-if="FeaturedProduct.length > 0" :brand="product.manufacturer" :products="FeaturedProduct" />
+                        <FeaturedProducts v-if="FeaturedProduct.length > 0" :brand="product.manufacturer"
+                            :products="FeaturedProduct" />
                     </div>
                     <section class="mb-3 mt-3">
                         <div class="small-sub-sec d-flex justify-content-between align-items-center p-4">
@@ -447,9 +455,9 @@ p {
 .input-error {
     border: 1px solid #EF4444 !important;
 }
+
 .request-quote-section {
-    margin-bottom: 1rem; /* adjust as needed */
+    margin-bottom: 1rem;
+    /* adjust as needed */
 }
-
-
 </style>

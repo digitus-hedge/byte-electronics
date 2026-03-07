@@ -78,7 +78,7 @@ const applyFilters = () => {
         });
     }
     router.get('/products/filter/', queryParams, {
-        preserveState: false,
+        preserveState: true,
         replace: true,
         preserveScroll: true,
         onSuccess: (page) => {
@@ -114,9 +114,10 @@ const updatePage = (newPage) => {
         });
     }
     router.get('/products/filter/', queryParams, {
-        preserveState: false,
+        preserveState: true,
         replace: true,
         preserveScroll: true,
+        only: ['products', 'selectedFilters', 'productPageFilter'],
         onSuccess: (page) => {
             console.log('Pagination request success:', page.props);
         },
@@ -152,10 +153,12 @@ watch(() => props.selectedFilters, (newSelectedFilters) => {
     currentPage.value = filters.value.page;
 }, { deep: true });
 
+let searchTimeout = null;
 watch(searchQuery, (newQuery) => {
     filters.value.search = newQuery;
     filters.value.page = 1;
-    applyFilters();
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(() => applyFilters(), 500);
 });
 
 // const addToCart = async (product) => {
