@@ -5,7 +5,7 @@ import Pagination from "@/Components/helpers/Pagination.vue";
 import ProductCard from "@/Components/helpers/ProductCard.vue";
 import AppLayout from '@/Layouts/AppLayout.vue';
 import BreadCrums from "@/Layouts/BreadCrums.vue";
-import { ref, watch, computed } from "vue";
+import { ref, watch, computed, onMounted, onUnmounted } from "vue";
 import { Link, useForm, router } from '@inertiajs/vue3';
 import { toast } from "vue3-toastify";
 import "vue3-toastify/dist/index.css";
@@ -15,6 +15,14 @@ import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 import axios from 'axios'
 
+const closeManufacturer = (e) => {
+    if (!e.target.closest('.manufacturer-dropdown')) {
+        manufacturerOpen.value = false;
+    }
+};
+
+onMounted(() => document.addEventListener('click', closeManufacturer));
+onUnmounted(() => document.removeEventListener('click', closeManufacturer));
 const props = defineProps({
     ProductBanner: String,
     productPageFilter: { type: Array, required: true },
@@ -37,6 +45,15 @@ const props = defineProps({
         })
     },
 });
+
+const manufacturerOpen = ref(false);
+const manufacturerSearch = ref('');
+const filteredManufacturerList = computed(() =>
+    filteredManufacturers.value.filter(b =>
+        b.name.toLowerCase().includes(manufacturerSearch.value.toLowerCase())
+    )
+);
+
 // Initialize filters with only explicitly provided values
 const filters = ref({
     manufacturer: props.selectedFilters.manufacturer?.length > 0 ? props.selectedFilters.manufacturer : [],
@@ -265,7 +282,7 @@ const removeItemFromCart = (itemId) => {
             <Banner :image="ProductBanner" :search="false" :style="{ borderRadius: '10px' }" />
             <div class="py-3 w-100">
                 <!-- Accordion Section - Moved Here -->
-                <div class="container mb-3" style="padding: 0;">
+                <!-- <div class="container mb-3" style="padding: 0;">
                     <div class="row">
                         <div class="col-12 col-md-4">
                             <Accordion title="Manufacturer" :filterSections="filteredManufacturers"
@@ -283,7 +300,7 @@ const removeItemFromCart = (itemId) => {
                                 @update:openIndex="openIndex = $event" @change="applyFilters" />
                         </div>
                     </div>
-                </div>
+                </div> -->
                 <div class="container" style="padding: 0; font-size: 14px;">
                     <AttributeFilterNew :productPageFilter="productPageFilter" :filters="filters"
                         @update:filters="updateAttributeFilters" />
@@ -298,6 +315,27 @@ const removeItemFromCart = (itemId) => {
                                     style="height: 36px;">
                                 <i
                                     class="fas fa-search position-absolute top-50 end-0 translate-middle-y me-3 text-muted small"></i>
+                            </div>
+                            <div class="position-relative manufacturer-dropdown">
+                                <button class="manufacturer-btn d-flex align-items-center gap-1"
+                                    @click="manufacturerOpen = !manufacturerOpen" type="button">
+                                    Manufacturer
+                                    <span v-if="filters.manufacturer.length > 0" class="manufacturer-count">{{
+                                        filters.manufacturer.length }}</span>
+                                    <i class="fas fa-chevron-down small ms-1"></i>
+                                </button>
+                                <div v-if="manufacturerOpen" class="manufacturer-menu">
+                                    <input v-model="manufacturerSearch" type="text" placeholder="Search..."
+                                        class="manufacturer-search" />
+                                    <div class="manufacturer-list">
+                                        <label v-for="brand in filteredManufacturerList" :key="brand.id"
+                                            class="manufacturer-item">
+                                            <input type="checkbox" :value="brand.id" v-model="filters.manufacturer"
+                                                @change="filters.page = 1; applyFilters()" />
+                                            {{ brand.name }}
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
                             <div class="filter-options d-flex flex-wrap align-items-center gap-3">
                                 <div class="form-check d-flex align-items-center">
@@ -391,6 +429,72 @@ export default {
 
 
 <style scoped>
+.manufacturer-dropdown {
+    position: relative;
+}
+
+.manufacturer-btn {
+    background: white;
+    border: 1px solid #e1eaf2;
+    border-radius: 4px;
+    padding: 4px 10px;
+    font-size: 0.85rem;
+    color: #000;
+    cursor: pointer;
+    height: 36px;
+}
+
+.manufacturer-menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    z-index: 100;
+    width: 220px;
+    padding: 8px;
+}
+
+.manufacturer-search {
+    width: 100%;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    padding: 4px 8px;
+    font-size: 13px;
+    margin-bottom: 6px;
+    outline: none;
+}
+
+.manufacturer-list {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.manufacturer-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 4px;
+    font-size: 13px;
+    color: #000;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.manufacturer-item:hover {
+    background: #fdf1f0;
+    color: #EF4137;
+}
+
+.manufacturer-item input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    accent-color: #EF4137;
+    cursor: pointer;
+}
+
 .card-img-top {
     width: 100%;
     aspect-ratio: 1/1;

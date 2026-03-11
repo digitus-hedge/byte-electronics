@@ -46,7 +46,7 @@ const products = computed(() => {
     });
     categoryLinks.push({
         name: 'All Categories',
-        url: '/categories/list',
+        url: '/categories',
         subcategories: [],
     });
     return categoryLinks;
@@ -438,7 +438,8 @@ const myFunction = (element) => {
                                 :class="{ show: isShow === 'show' }" aria-labelledby="navbarDropdown">
                                 <li v-for="product in products" :key="product.name" class="dropdown-item-wrapper">
                                     <Link class="dropdown-item d-flex justify-content-between align-items-center"
-                                        :href="product.url">
+                                        :href="product.url"
+                                        :class="{ 'all-categories-item': product.name === 'All Categories' }">
                                         {{ product.name }}
                                         <i class="bi bi-chevron-right ms-2" style="font-size: 12px;"></i>
                                     </Link>
@@ -457,7 +458,7 @@ const myFunction = (element) => {
                             <Link class="nav-link" href="/brands/list">MANUFACTURERS</Link>
                         </li>
                         <li>
-                            <Link class="nav-link" href="/categories/list">CATEGORIES</Link>
+                            <Link class="nav-link" href="/categories">CATEGORIES</Link>
                         </li>
                         <li>
                             <Link class="nav-link" href="/blogs/">BLOG</Link>
@@ -612,6 +613,24 @@ const myFunction = (element) => {
 </template>
 
 <style scoped>
+.all-categories-item {
+    background-color: #EF4137 !important;
+    color: #ffffff !important;
+    font-weight: 600;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.all-categories-item:hover {
+    background-color: #c0312a !important;
+    color: #ffffff !important;
+    transform: translateX(3px);
+}
+
+.all-categories-item i {
+    color: #ffffff !important;
+}
+
 .nav-item.dropdown {
     position: relative;
 }
