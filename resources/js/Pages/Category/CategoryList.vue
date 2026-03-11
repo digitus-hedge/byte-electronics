@@ -90,7 +90,7 @@ const applyFilters = () => {
         <div class="container-fluid container d-flex flex-column align-items-start mt-4 mb-4">
             <div class="border w-100 custom-border-color rounded-3 p-4">
                 <div class="d-flex align-items-center justify-content-between flex-wrap">
-                    <div class="col-12 col-md-5 mb-3 mb-md-0">
+                    <div class="col-12 col-md-12 mb-3 mb-md-0">
                         <label class="mb-2" for="search-input">Search within results</label>
                         <div class="input-group">
                             <input type="text" class="form-control combined-search-input border" id="search-input"
@@ -100,7 +100,7 @@ const applyFilters = () => {
                             </button>
                         </div>
                     </div>
-                    <div class="col-12 col-md-6">
+                    <div class="col-12 col-md-6 d-none">
                         <label class="mb-2" for="select-filter">Filter by Manufacturers</label>
                         <div class="d-flex">
                             <select v-model="selectedFilter" id="select-filter" class="form-control box-shadow-0"
@@ -118,7 +118,7 @@ const applyFilters = () => {
                         </div>
                     </div>
                 </div>
-                <div class="col-md-5 pt-3">
+                <div class="col-md-5 pt-3 d-none">
                     <div class="row">
                         <div v-for="(checkbox, index) in checkboxes" :key="index"
                             class="col-12 col-md-4 d-flex align-items-center mb-2 mb-md-0">
