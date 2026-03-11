@@ -120,25 +120,19 @@ const applyFilters = () => {
             <div class="d-flex pt-4 pb-4 align-items-center gap-4 flex-wrap actionBtn">
                 <Buttons v-for="(btn, index) in buttons" :key="index" :name="btn.name" :icon="btn.icon"
                     :isActive="activeButton === index" @click="handleClick(index)" />
-            </div>
-            <div class="pt-3 w-100">
-                <h5 class="categoryfilterHead fw-bold w-100 d-block border-bottom pb-2">Types of {{ title }}</h5>
+                <div class="pt-3 w-100">
+                    <h5 class="categoryfilterHead fw-bold w-100 d-block border-bottom pb-2">Types of {{ title }}</h5>
 
-                <div v-for="(category, index) in current_categories" :key="index" class="mt-2 pb-3 ms-3 border-bottom">
-                    <!-- <code>{{ category }}</code> -->
-                    <Link :href="category.url" class="fw-bold pt-2 pb-2" style="color:#585D62;">
-                    {{ category.name }}
-                    </Link>
-                    <div class="row ms-4">
-                        <div v-for="(item, i) in category.items" :key="i" class="col-md-4">
-                            <Link>
-                            {{ item.name }}
-                            </LInk>
+                    <div class="items-grid ms-3 mt-2">
+                        <div v-for="(category, index) in current_categories" :key="index" class="grid-item">
+                            <Link :href="category.url">
+                                <span class="bullet">&#8250;</span>
+                                {{ category.name }}
+                            </Link>
                         </div>
                     </div>
                 </div>
             </div>
-
             <!-- <div class="border w-100 custom-border-color rounded-3 p-4 mt-5">
                 <div class="d-flex align-items-center justify-content-between flex-wrap">
                     <div class="col-12 col-md-5 mb-3 mb-md-0">
@@ -186,6 +180,49 @@ const applyFilters = () => {
 </template>
 
 <style scoped>
+.items-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 4px 8px;
+    margin-top: 8px;
+}
+
+.grid-item a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #3A3A3A;
+    font-size: 14px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.grid-item a:hover {
+    color: #ef4137;
+    background-color: #fdf1f0;
+    padding-left: 10px;
+}
+
+.bullet {
+    color: #ef4137;
+    font-size: 18px;
+    line-height: 1;
+}
+
+@media (max-width: 767px) {
+    .items-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 480px) {
+    .items-grid {
+        grid-template-columns: repeat(1, 1fr);
+    }
+}
+
 .custom-img {
     width: 130px;
     height: auto;
