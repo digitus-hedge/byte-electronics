@@ -32,7 +32,7 @@ const categories = computed(() => {
 });
 
 const products = computed(() => {
-    const categoryLinks = categories.value.map(category => {
+    const categoryLinks = categories.value.slice(0, 10).map(category => {
         console.log('Category:', category.name, 'Subcategories:', category.subcategories);
         return {
             name: category.name,
