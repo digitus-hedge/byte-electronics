@@ -1,37 +1,34 @@
 <?php
 
+use App\Events\DetailedTestMessage;
+use App\Events\TestEvent;
 use App\Http\Controllers\BannersController;
 use App\Http\Controllers\BlogController as BackendBlogController;
 use App\Http\Controllers\BrandController;
 use App\Http\Controllers\CartController as BackendCartController;
-use App\Http\Controllers\Frontend\FrontendBrandController;
 use App\Http\Controllers\CategoryController;
+use App\Http\Controllers\CurrencyController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Frontend\BlogController;
-use App\Http\Controllers\Frontend\HomeController;
+use App\Http\Controllers\Frontend\FrontendBrandController;
 use App\Http\Controllers\Frontend\FrontendCategoryController;
+use App\Http\Controllers\Frontend\FrontendCheckoutController;
+use App\Http\Controllers\Frontend\FrontendOrderController;
+use App\Http\Controllers\Frontend\FrontendProfileController;
+use App\Http\Controllers\Frontend\HomeController;
 use App\Http\Controllers\Frontend\ProductController;
+use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ProductAttrDocumentController;
 use App\Http\Controllers\ProductAttributeController;
+use App\Http\Controllers\ProductHeaderController;
 use App\Http\Controllers\ProductImageController;
+use App\Http\Controllers\ProductImportController;
 use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SubCategoryController;
 use App\Http\Controllers\UserController;
-use App\Http\Controllers\CurrencyController;
-use App\Http\Controllers\Frontend\CartController;
-use App\Http\Controllers\Frontend\FrontendProfileController;
-use App\Http\Controllers\ProductImportController;
-use App\Events\DetailedTestMessage;
-use App\Http\Controllers\ProductHeaderController;
-use App\Http\Controllers\OrderController;
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Facades\Log;
-use App\Events\TestEvent;
-use App\Http\Controllers\Frontend\FrontendCheckoutController;
-use App\Http\Controllers\Frontend\FrontendOrderController;
-use App\Http\Controllers\EmailVerificationController;
+use Illuminate\Support\Facades\Route;
 
 // Route::get('/', function () {
 //     return Inertia::render('Welcome', [
@@ -89,10 +86,10 @@ Route::middleware([
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
-    Route::get('/users', [UserController::class, 'index'])->name('users.index');                                                     // List users
-    Route::get('/users/create', [UserController::class, 'create'])->name('users.create');                                            // Create user form
-    Route::post('/users', [UserController::class, 'store'])->name('users.store');                                                    // Save new user
-    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit');                                           // Edit user permissions
+    Route::get('/users', [UserController::class, 'index'])->name('users.index');           // List users
+    Route::get('/users/create', [UserController::class, 'create'])->name('users.create');  // Create user form
+    Route::post('/users', [UserController::class, 'store'])->name('users.store');          // Save new user
+    Route::get('/users/{user}/edit', [UserController::class, 'edit'])->name('users.edit'); // Edit user permissions
     Route::put('/users/{user}', [UserController::class, 'update'])->name('users.update');
     Route::post('/users/{user}/assign-permissions', [UserController::class, 'assignPermissions'])->name('users.assign-permissions'); // Assign permissions
     Route::delete('/users/{user}', [UserController::class, 'destroy'])->name('users.destroy');                                       // Delete user
@@ -139,8 +136,7 @@ Route::middleware([
     Route::delete('/brands', [BrandController::class, 'destroy'])->name('brands.destroy');
     Route::post('/brands/add-featured', [BrandController::class, 'addFeatured'])->name('brands.addFeatured');
     Route::post('/brands/remove-featured', [BrandController::class, 'removeFeatured'])->name('brands.removeFeatured');
- 
-   
+
     Route::get('/products/create', [ProductsController::class, 'create'])->name('productManage.create');
     Route::get('/products', [ProductsController::class, 'index'])->name('productManage.index');
     Route::get('/products/edit/{product}', [ProductsController::class, 'edit'])->name('productManage.edit');
@@ -154,7 +150,7 @@ Route::middleware([
     //product sample excel download
     Route::get('products/bulk-import', [ProductsController::class, 'productBulkImport'])->name('productManage.bulk-import');
     Route::post('/products/import', [ProductsController::class, 'productBulkImportStore'])->name('productManage.import');
-    Route::post('/products/price_import',[ProductsController::class, 'productPriceImport'])->name('productManage.price_import');
+    Route::post('/products/price_import', [ProductsController::class, 'productPriceImport'])->name('productManage.price_import');
     Route::post('/products/specification_import', [ProductsController::class, 'productSpecificationImportStore'])->name('productManage.specification_import_store');
     Route::post('/products/more_info_import', [ProductsController::class, 'productMoreInfoImportStore'])->name('productManage.more_info_import');
 
@@ -163,8 +159,6 @@ Route::middleware([
     // Request for Quote
     Route::get('/products/rfq', [ProductsController::class, 'requestQuote'])->name('productManage.requestQuote');
 
-
-    
     Route::get('/get-attributes/{headingId}', [ProductHeaderController::class, 'getAttributes']);
     Route::post('/add-heading', [ProductHeaderController::class, 'addHeading']);
     Route::post('/add-attribute', [ProductAttributeController::class, 'addAttribute']);
@@ -216,9 +210,8 @@ Route::group(['prefix' => 'products', 'as' => 'product.'], function () {
     Route::get('/search', [ProductController::class, 'search'])->name('products.search');
     Route::post('/similar-count', [ProductController::class, 'getSimilarProductsCount'])->name('products.similar-count');
     Route::post('/request-quote/{productId}', [ProductController::class, 'requestQuote'])
-    ->name('productManage.requestQuote');
+        ->name('productManage.requestQuote');
 });
-
 
 Route::group(['prefix' => 'blogs', 'as' => 'blogs.'], function () {
     Route::get('/', [BlogController::class, 'index'])->name('blogs.index');
@@ -226,16 +219,15 @@ Route::group(['prefix' => 'blogs', 'as' => 'blogs.'], function () {
     Route::get('details/{slug}', [BlogController::class, 'show'])->name('blogs.show');
 });
 
-
 Route::group(['prefix' => 'categories', 'as' => 'categories.'], function () {
-    Route::get('/list', [FrontendCategoryController::class, 'index'])->name('categories.index');
+    Route::get('/', [FrontendCategoryController::class, 'index'])->name('categories.index');
     // Route::get('/details/{slug}', [FrontendCategoryController::class, 'view'])->name('categories.details');
-    Route::get('/details/{any}', [FrontendCategoryController::class,'show'])->where('any', '.*')->name('category.details');
+    Route::get('/{any}', [FrontendCategoryController::class, 'show'])->where('any', '.*')->name('category.details');
     Route::post('/category-action', [FrontendCategoryController::class, 'handleAction']);
 });
-Route::group(['prefix'=>'brands','as'=>'brands.'],function(){
-    Route::get('/list',[FrontendBrandController::class,'index'])->name('list');
-    Route::get('/details/{slug}',[FrontendBrandController::class,'details'])->name('details');
+Route::group(['prefix' => 'brands', 'as' => 'brands.'], function () {
+    Route::get('/list', [FrontendBrandController::class, 'index'])->name('list');
+    Route::get('/details/{slug}', [FrontendBrandController::class, 'details'])->name('details');
 });
 // Route::group(['prefix'=>'cart','as'=>'cart.'],function(){
 //     Route::get('/',[CartController::class,'index'])->name('cart');
@@ -246,7 +238,6 @@ Route::group(['prefix'=>'brands','as'=>'brands.'],function(){
 Route::get('/get-attributes/{headingId}', [ProductHeaderController::class, 'getAttributes']);
 Route::post('/add-heading', [ProductHeaderController::class, 'addHeading']);
 Route::post('/add-attribute', [ProductAttributeController::class, 'addAttribute']);
-
 
 Route::get('/privacy-policy', [HomeController::class, 'privacyPolicy'])->name('privacy-policy');
 Route::get('/faq', [HomeController::class, 'faq'])->name('faq');
@@ -262,17 +253,16 @@ Route::post('/cart/add/{productId}', [BackendCartController::class, 'addToCart']
 Route::put('/cart/update/{itemId}', [BackendCartController::class, 'updateCart'])->name('cart.update');
 Route::delete('/cart/remove/{itemId}', [BackendCartController::class, 'removeFromCart'])->name('cart.remove');
 Route::get('/cart/count', [BackendCartController::class, 'count'])->name('count');
-Route::get('/cart',[BackendCartController::class,'index'])->name('cart');
+Route::get('/cart', [BackendCartController::class, 'index'])->name('cart');
 // Route::get('/cart', [BackendCartController::class, 'viewCart'])->name('cart.view');
 
 //Profile
-Route::get('/profile',[FrontendProfileController::class,'index'])->name('profile');
+Route::get('/profile', [FrontendProfileController::class, 'index'])->name('profile');
 Route::post('/profile/address', [FrontendProfileController::class, 'storeAddress'])->name('profile.address.store');
 Route::put('/profile/address/{id}', [FrontendProfileController::class, 'updateAddress'])->name('profile.address.update');
 Route::delete('/profile/address/{id}', [FrontendProfileController::class, 'deleteAddress'])->name('profile.address.delete');
-Route::get('/checkout-page',[FrontendCheckoutController::class,'checkoutPage'])->name('checkout.page');
+Route::get('/checkout-page', [FrontendCheckoutController::class, 'checkoutPage'])->name('checkout.page');
 Route::post('/checkout', [OrderController::class, 'checkout'])->name('checkout');
-
 
 // Route::get('/send-detailed-test', function () {
 //     $message = 'Test message from Byte-backend';
@@ -286,7 +276,7 @@ Route::get('/my-orders', [FrontendOrderController::class, 'myOrders'])->name('my
 
 Route::get('/send-detailed-test', function () {
     $message = 'Test message from Byte-backend';
-    $sender = 'Byte Admin';
+    $sender  = 'Byte Admin';
     Log::info('Broadcasting DetailedTestMessage', ['message' => $message, 'sender' => $sender]);
     broadcast(new DetailedTestMessage($message, $sender));
     return 'Detailed test message sent!';
@@ -301,7 +291,6 @@ Route::get('/send-test', function () {
 
 Route::get('/product-line', [FrontendBrandController::class, 'prodductLine'])->name('product.line');
 
-
 Route::post('/import-products', [ProductImportController::class, 'importProducts']);
 
 Route::get('get-orders/{id}', [FrontendOrderController::class, 'getOrders'])->name('getOrders');
@@ -309,5 +298,7 @@ Route::get('get-orders/{id}', [FrontendOrderController::class, 'getOrders'])->na
 // Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])->name('verification.verify')->middleware(['signed']);
 // Route::post('/email/verification-notification', [EmailVerificationController::class, 'send'])->name('verification.send');
 // Route::post('/products/dynamic-attributes', [ProductController::class, 'dynamicAttributes']);
-
-
+Route::get('/{category}/{subcategory}', [FrontendCategoryController::class, 'show'])
+    ->where('category', '[a-z0-9-]+')
+    ->where('subcategory', '[a-z0-9-]+')
+    ->name('category.subcategory');

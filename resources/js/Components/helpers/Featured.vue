@@ -69,7 +69,7 @@ defineProps({
         </div>
         <div class="featCategory mt-4 d-flex flex-wrap justify-content-center text-center">
             <div v-for="(category, index) in categoriesShow" :key="index" class="" style="width: 150px;">
-                <Link :href="`/categories/details/${category.slug}`"
+                <Link :href="`/categories/${category.slug}`"
                     class="text-decoration-none text-dark d-flex flex-column align-items-center">
                     <img :src="`${imageUrl}/${category.file_name || 'default.png'}`" class="img-fluid"
                         :alt="category.name" />
