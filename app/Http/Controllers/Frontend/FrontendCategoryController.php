@@ -57,10 +57,7 @@ class FrontendCategoryController extends Controller
             'id'          => $sub->id,
             'category_id' => $sub->category_id,
             'name'        => $sub->name,
-            'url'         => url('products/filter') . '?' . http_build_query([
-                'productType' => [$sub->category_id],
-                'subCategory' => [$sub->id],
-            ]),
+            'url'         => '/' . $category->slug . '/' . $sub->slug,
             'active'      => $sub->status == 1,
             'newProducts' => false,
             'brand_ids'   => [],
@@ -229,12 +226,12 @@ class FrontendCategoryController extends Controller
                     ->whereNull('deleted_at')
                     ->where(function ($query) use ($parent) {
                         if ($parent instanceof Category) {
-                            // Top-level sub: belongs directly to this category
-                            $query->where('category_id', $parent->id);
+                            $query->where('category_id', $parent->id)
+                                ->orWhereHas('children', function ($q) use ($parent) {
+                                    $q->where('category_id', $parent->id);
+                                });
                         } else {
-                            // Nested sub: must belong to same category AND have this sub as parent
-                            $query->where('category_id', $parent->category_id)
-                                ->where('parent_id', $parent->id);
+                            $query->where('parent_id', $parent->id);
                         }
                     })
                     ->first();

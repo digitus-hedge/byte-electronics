@@ -140,7 +140,7 @@ const searchProducts = async () => {
 const selectProduct = (product) => {
     searchQuery.value = product.name;
     isSearchDropdownOpen.value = false;
-    router.visit(`/products/details/${encodeURIComponent(product.slug)}`, {
+    router.visit(`/${product.category_slug}/${product.subcategory_slug}/${product.slug}`, {
         preserveState: true,
         preserveScroll: true,
     });

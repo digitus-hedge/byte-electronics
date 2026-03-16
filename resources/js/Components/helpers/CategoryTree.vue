@@ -13,26 +13,10 @@
 
             <!-- Floating dropdown content -->
             <div v-if="activeIndex === categoryIndex" class="dropdown-content">
-                <div v-for="(subCategory, subIndex) in category.items" :key="subIndex" class="w-100 mb-3">
-
-                    <!-- Level 2: use subCategory.url from backend -->
-                    <Link :href="subCategory.url">
-                        <p class="category-title" style="font-size: 15px; font-weight: 600; color: #212529;">
-                            {{ subCategory.name }}
-                        </p>
-                    </Link>
-
-                    <div class="sub-cat-head" v-if="subCategory.items && subCategory.items.length">
-                        <ul class="categories" style="margin-left: 2rem;">
-                            <li v-for="(item, index) in subCategory.items" :key="index"
-                                :style="getItemStyle(index, subCategory.items.length)">
-
-                                <!-- Level 3: use item.url from backend -->
-                                <Link v-if="item.name" :href="item.url">
-                                    {{ item.name }}
-                                </Link>
-                            </li>
-                        </ul>
+                <div v-for="(subCategory, subIndex) in category.items" :key="subIndex" class="grid-item">
+                    <div @click.stop="navigateTo(subCategory.url)" style="cursor: pointer;">
+                        <span class="bullet">&#8250;</span>
+                        {{ subCategory.name }}
                     </div>
                 </div>
             </div>
@@ -41,8 +25,8 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import { Link } from '@inertiajs/vue3';
+import { ref, onMounted, onUnmounted } from 'vue';
+import { Link, router } from '@inertiajs/vue3';
 
 const props = defineProps({
     categories: {
@@ -51,11 +35,25 @@ const props = defineProps({
     },
 });
 
-const activeIndex = ref(null); // ← changed from expanded object to single value
+const navigateTo = (url) => {
+    activeIndex.value = null;
+    router.visit(url);
+};
+
+const activeIndex = ref(null);
 
 const toggle = (index) => {
-    activeIndex.value = activeIndex.value === index ? null : index; // ← close previous, open new
+    activeIndex.value = activeIndex.value === index ? null : index;
 };
+
+const closeDropdown = (e) => {
+    if (!e.target.closest('.category-card') && !e.target.closest('.dropdown-content')) {
+        activeIndex.value = null;
+    }
+};
+
+onMounted(() => document.addEventListener('click', closeDropdown));
+onUnmounted(() => document.removeEventListener('click', closeDropdown));
 
 const getBackgroundColor = (index) => ({
     backgroundColor: Math.floor(index / 3) % 2 === 0 ? '#FAFAFB' : '#fff'
@@ -153,12 +151,56 @@ h6 {
     background: white;
     border: 1px solid #CACACA;
     border-radius: 8px;
-    padding: 20px;
+    padding: 12px 16px;
     margin-top: 5px;
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
     z-index: 1000;
-    max-height: 500px;
+    max-height: 300px;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.grid-item a {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #3A3A3A;
+    font-size: 14px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.grid-item a:hover {
+    color: #ef4137;
+    background-color: #fdf1f0;
+    padding-left: 10px;
+}
+
+.dropdown-content .grid-item div {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #3A3A3A;
+    font-size: 14px;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+.dropdown-content .grid-item div:hover {
+    color: #ef4137;
+    background-color: #fdf1f0;
+    padding-left: 10px;
+}
+
+.bullet {
+    color: #ef4137;
+    font-size: 18px;
+    line-height: 1;
 }
 
 .dropdown-content .categories {

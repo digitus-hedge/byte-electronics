@@ -55,7 +55,7 @@ const isLoading = ref(false);
 //             headers: {
 //                 'X-XSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content,
 //             },
-            
+
 //             onError: (errors) => {
 //                 console.error('Update errors:', errors);
 //                 Swal.fire({
@@ -66,7 +66,7 @@ const isLoading = ref(false);
 //                 });
 //             },
 //         });
-        
+
 //     } catch (error) {
 //         console.error('Error updating cart item:', error);updateCartItem
 //         Swal.fire({
@@ -78,7 +78,7 @@ const isLoading = ref(false);
 //     }
 // };
 const updateCartItem = async (itemId, newQuantity) => {
-console.log('Updating item:', { itemId, newQuantity });
+    console.log('Updating item:', { itemId, newQuantity });
     if (!Number.isInteger(newQuantity) || newQuantity < 1) return;
 
     try {
@@ -135,7 +135,7 @@ const removeItem = async (itemId) => {
 
 // Product search and add to cart
 const searchProducts = async () => {
-    
+
     if (searchQuery.value.length < 2) {
         searchResults.value = [];
         isSearchDropdownOpen.value = false;
@@ -146,9 +146,9 @@ const searchProducts = async () => {
         const response = await axios.get('/products/search', {
             params: { search: searchQuery.value }
         });
-  
+
         searchResults.value = response.data.products || [];
-     console.log('Search results:', searchResults.value);
+        console.log('Search results:', searchResults.value);
         isSearchDropdownOpen.value = true;
     } catch (error) {
         console.error('Error searching products:', error);
@@ -162,7 +162,7 @@ const selectProduct = (event, product) => {
 
     event.preventDefault();
     searchQuery.value = product.name;
-    
+
     selectedProduct.value = product;
     isSearchDropdownOpen.value = false;
 };
@@ -223,7 +223,7 @@ const checkout = () => {
         toast.error("Quantity must be at least 1 ");
         return;
     }
- 
+
     router.visit('/checkout-page', { preserveScroll: true });
 };
 
@@ -292,8 +292,8 @@ const cartIsEmpty = computed(() => props.cartItems.length === 0);
         <BreadCrums />
         <div class="container-fluid container d-flex flex-column align-items-start mt-4 mb-4">
             <Link :href="'/products/filter'" class="backBtn d-flex align-items-center">
-            <i class="bi bi-chevron-left mt-1 mb-1 fs-6" style="font-weight: 900;"></i>
-            <span>Continue Shopping</span>
+                <i class="bi bi-chevron-left mt-1 mb-1 fs-6" style="font-weight: 900;"></i>
+                <span>Continue Shopping</span>
             </Link>
             <h4 class="mt-3 mb-3 fw-bold" style="font-size: 18px;">Shopping Basket</h4>
 
@@ -327,21 +327,21 @@ const cartIsEmpty = computed(() => props.cartItems.length === 0);
                         <label>Product</label>
                         <input type="text" v-model="searchQuery" class="form-control shadow-none"
                             @keydown.enter="addToCart" placeholder="Search products..." @input="searchProducts" />
-                            <div class="search-results-dropdown" v-if="isSearchDropdownOpen && searchResults.length">
-                                <ul class="search-results-list">
-                                    <li v-for="product in searchResults" :key="product.id"
-                                        @click="selectProduct($event, product)" class="search-result-item">
-                                        <div class="product-info">
-                                            <span class="product-name">{{ product.name }}</span>
-                                            <!-- Add price if available -->
-                                            <span class="product-price" v-if="product.price">
-                                                USD {{ product.price }}
-                                            </span>
-                                        </div>
-                                    </li>
-                                </ul>
-                            </div>
-                        
+                        <div class="search-results-dropdown" v-if="isSearchDropdownOpen && searchResults.length">
+                            <ul class="search-results-list">
+                                <li v-for="product in searchResults" :key="product.id"
+                                    @click="selectProduct($event, product)" class="search-result-item">
+                                    <div class="product-info">
+                                        <span class="product-name">{{ product.name }}</span>
+                                        <!-- Add price if available -->
+                                        <span class="product-price" v-if="product.price">
+                                            USD {{ product.price }}
+                                        </span>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+
                     </div>
 
                     <div class="col-md-2 col-sm-6">
@@ -420,9 +420,11 @@ const cartIsEmpty = computed(() => props.cartItems.length === 0);
                                 <td class="product-details"></td>
                                 <td>
                                     <div v-html="item.description"></div><br>
-                                    <Link :href="`products/details/${item.slug}`" class="quick-view">
-                                    Product Details
-                                    <i class="fa-regular fa-share-from-square share-icon" style="color: #EF4137;"></i>
+                                    <Link :href="`/${item.category_slug}/${item.subcategory_slug}/${item.slug}`"
+                                        class="quick-view">
+                                        Product Details
+                                        <i class="fa-regular fa-share-from-square share-icon"
+                                            style="color: #EF4137;"></i>
                                     </Link>
                                 </td>
                                 <td>{{ item.unit_key ?? 'Normal' }}</td>
@@ -438,8 +440,8 @@ const cartIsEmpty = computed(() => props.cartItems.length === 0);
                                         style="cursor: pointer;"></i>
                                 </td>
                             </tr>
-                        </tbody> 
-         
+                        </tbody>
+
 
                     </table>
 
@@ -447,7 +449,7 @@ const cartIsEmpty = computed(() => props.cartItems.length === 0);
                         <h5>Your cart is empty</h5>
 
                         <Link :href="'/products/filter'" class="btn btn-primary mt-3">
-                        Continue Shopping
+                            Continue Shopping
 
                         </Link>
                     </div>
@@ -495,7 +497,7 @@ const cartIsEmpty = computed(() => props.cartItems.length === 0);
                                 </div>
                                 <div class="d-flex justify-content-between mt-3">
                                     <span><strong>Subtotal:</strong></span>
-                                    <span><strong>{{ subtotalReactive }}   USD</strong></span>
+                                    <span><strong>{{ subtotalReactive }} USD</strong></span>
                                 </div>
                             </div>
                             <div class="d-flex justify-content-end mt-3">

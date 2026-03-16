@@ -1,28 +1,25 @@
 <?php
-
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
 use App\Models\Banners;
 use App\Models\Brands;
-use App\Models\Products;
 use App\Models\Category;
-use App\Models\CartItems;
+use App\Models\Products;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use ReCaptcha\ReCaptcha;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\ContactFormMail;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class HomeController extends Controller
 {
     public function Home()
     {
         $formattedBanners = $this->formattedBanners();
-        $newestProducts = $this->newestProducts();
+        $newestProducts   = $this->newestProducts();
 
         $bestSellers = $this->bestSellers();
 
@@ -34,37 +31,53 @@ class HomeController extends Controller
         $brands = Brands::limit(6)->get();
 
         return Inertia::render('Home', [
-            'Banners' => $formattedBanners,
+            'Banners'        => $formattedBanners,
             'newestProducts' => $newestProducts,
-            'bestSellers' => $bestSellers,
+            'bestSellers'    => $bestSellers,
             'categoriesShow' => $categoriesShow,
-            'imageUrl' => asset('uploads/category'),
-            'imageBrandUrl' => asset('uploads/brand'),
-            'Brands' => $brands,
+            'imageUrl'       => asset('uploads/category'),
+            'imageBrandUrl'  => asset('uploads/brand'),
+            'Brands'         => $brands,
             // 'cartCount' => auth()->check() ? auth()->user()->cartItems()->count() : 0,
         ]);
     }
 
     private function bestSellers()
     {
-        return Products::orderBy('created_at', 'desc')->where('best_sellers',1)->take(20)->get()->map(function ($product) {
+        return Products::with(['category:id,slug', 'subcategories:id,slug'])
+            ->orderBy('created_at', 'desc')->where('best_sellers', 1)->take(20)->get()->map(function ($product) {
             return [
-                'id' => $product->id,
-                'name' => $product->name,
-                'description' =>  strip_tags($product->description),
-                'image' => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
-                'isNew' => false,
-                'slug' => "products/details/".$product->slug,
-                'part_no' => $product->manufacturers_no,
+                'id'               => $product->id,
+                'name'             => $product->name,
+                'description'      => strip_tags($product->description),
+                'image'            => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
+                'isNew'            => false,
+                'slug'             => $product->slug,
+                'part_no'          => $product->manufacturers_no,
+                'category_slug'    => $product->category->slug ?? 'uncategorized',
+                'subcategory_slug' => $product->subcategories->slug ?? 'uncategorized',
             ];
         });
     }
 
+    // private function bestSellers()
+    // {
+    //     return Products::orderBy('created_at', 'desc')->where('best_sellers',1)->take(20)->get()->map(function ($product) {
+    //         return [
+    //             'id' => $product->id,
+    //             'name' => $product->name,
+    //             'description' =>  strip_tags($product->description),
+    //             'image' => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
+    //             'isNew' => false,
+    //             'slug' => "products/details/".$product->slug,
+    //             'part_no' => $product->manufacturers_no,
+    //         ];
+    //     });
+    // }
+
     private function newestProducts()
-
-
-{
-    $products = DB::select("
+    {
+        $products = DB::select("
         SELECT
             p.id,
             p.name,
@@ -89,36 +102,45 @@ class HomeController extends Controller
         LIMIT 20
     ");
 
-    return collect($products)->map(function ($product) {
-        return [
-            'id' => $product->id,
-            'name' => $product->name,
-            'description' => Str::limit(strip_tags($product->description), 150),
-            'image' => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
-            'isNew' => true,
-            'slug' => "products/details/" . $product->slug,
-            'part_no' => $product->manufacturers_no,
-            'min_qty' => $product->min_qty ?? 0,
-            'has_price' => !is_null($product->total_price),
-            'total_price' => $product->total_price ?? 0,
-        ];
-    });
-}
+        $productIds    = collect($products)->pluck('id')->toArray();
+        $productModels = Products::with(['category:id,slug', 'subcategories:id,slug'])
+            ->whereIn('id', $productIds)
+            ->get()
+            ->keyBy('id');
+
+        return collect($products)->map(function ($product) use ($productModels) {
+            $model = $productModels[$product->id] ?? null;
+            return [
+                'id'               => $product->id,
+                'name'             => $product->name,
+                'description'      => Str::limit(strip_tags($product->description), 150),
+                'image'            => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
+                'isNew'            => true,
+                'slug'             => $product->slug,
+                'part_no'          => $product->manufacturers_no,
+                'min_qty'          => $product->min_qty ?? 0,
+                'has_price'        => ! is_null($product->total_price),
+                'total_price'      => $product->total_price ?? 0,
+                'category_slug'    => $model?->category->slug ?? 'uncategorized',
+                'subcategory_slug' => $model?->subcategories->slug ?? 'uncategorized',
+            ];
+        });
+    }
     private function newestProducts_old()
     {
-       return Products::with('prices','minQuantity')->orderBy('created_at', 'desc')->take(20)->get()->map(function ($product) {
-        $firstPrice = $product->prices->first();
+        return Products::with('prices', 'minQuantity')->orderBy('created_at', 'desc')->take(20)->get()->map(function ($product) {
+            $firstPrice = $product->prices->first();
             return [
-                'id' => $product->id,
-                'name' => $product->name,
+                'id'          => $product->id,
+                'name'        => $product->name,
                 'description' => strip_tags($product->description),
-                'image' => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
-                'isNew' => true,
-                'slug' => "products/details/".$product->slug,
-                'part_no' => $product->manufacturers_no,
-                'min_qty' => $product->minQuantity ? $product->minQuantity->qty : 0,
-                'has_price' => $product->prices && $product->prices->count() > 0,
-               'total_price' => $firstPrice ? $firstPrice->total_price : 0,
+                'image'       => $product->file_name ? url('uploads/products/' . $product->file_name) : asset('/uploads/default.png'),
+                'isNew'       => true,
+                'slug'        => "products/" . $product->slug,
+                'part_no'     => $product->manufacturers_no,
+                'min_qty'     => $product->minQuantity ? $product->minQuantity->qty : 0,
+                'has_price'   => $product->prices && $product->prices->count() > 0,
+                'total_price' => $firstPrice ? $firstPrice->total_price : 0,
             ];
         });
     }
@@ -130,37 +152,37 @@ class HomeController extends Controller
             ->get()
             ->groupBy('type');
 
-        $requiredTypes = collect(['main_banner', 'secondary_banner_1', 'secondary_banner_2', 'secondary_banner_3', 'secondary_banner_4']);
+        $requiredTypes    = collect(['main_banner', 'secondary_banner_1', 'secondary_banner_2', 'secondary_banner_3', 'secondary_banner_4']);
         $formattedBanners = collect();
 
         foreach ($requiredTypes as $type) {
             if ($banners->has($type) && $banners[$type]->isNotEmpty()) {
                 // Use existing banner data
                 $formattedBanners->push([
-                    'type' => $type,
+                    'type'   => $type,
                     'images' => $banners[$type]->map(function ($banner) {
                         return [
-                            'src' => $banner->url1 ? url('storage/' . $banner->url1) : asset('storage/uploads/default-banner.png'),
-                            'alt' => $banner->bannername ?? 'Banner Image',
-                            'link' => $banner->redirect_url ?? '#',
-                            'priority' => $banner->priority ?? 1
+                            'src'      => $banner->url1 ? url('storage/' . $banner->url1) : asset('storage/uploads/default-banner.png'),
+                            'alt'      => $banner->bannername ?? 'Banner Image',
+                            'link'     => $banner->redirect_url ?? '#',
+                            'priority' => $banner->priority ?? 1,
                         ];
-                    })->sortBy('priority')->values()
+                    })->sortBy('priority')->values(),
                 ]);
             } else {
                 // Use default banner for missing type
                 $formattedBanners->push([
-                    'type' => $type,
+                    'type'   => $type,
                     'images' => [
                         [
-                            'src' => $type === 'main_banner'
+                            'src'      => $type === 'main_banner'
                                 ? asset('storage/uploads/default-main-banner.png')
                                 : asset('storage/uploads/default-banner.png'),
-                            'alt' => ucfirst(str_replace('_', ' ', $type)),
-                            'link' => '#',
-                            'priority' => 1
-                        ]
-                    ]
+                            'alt'      => ucfirst(str_replace('_', ' ', $type)),
+                            'link'     => '#',
+                            'priority' => 1,
+                        ],
+                    ],
                 ]);
             }
         }
@@ -219,7 +241,6 @@ class HomeController extends Controller
     //     }
     // }
 
-
     public function termsConditions()
     {
         $termsConditionBanner = asset('assets/banners/26284.png');
@@ -235,7 +256,7 @@ class HomeController extends Controller
     public function privacyPolicy()
     {
         $privacyPolicyBanner = asset('assets/banners/privacy-policy.png');
-        return Inertia::render('PrivacyPolicy',['privacyPolicyBanner'=>$privacyPolicyBanner]);
+        return Inertia::render('PrivacyPolicy', ['privacyPolicyBanner' => $privacyPolicyBanner]);
     }
     public function contactUs()
     {
@@ -246,7 +267,7 @@ class HomeController extends Controller
     public function about()
     {
         $aboutUsBanner = asset('assets/banners/26284.png');
-        return Inertia::render('AboutUs',['aboutUsBanner'=>$aboutUsBanner]);
+        return Inertia::render('AboutUs', ['aboutUsBanner' => $aboutUsBanner]);
 
     }
 
@@ -259,16 +280,15 @@ class HomeController extends Controller
 
         // Validate reCAPTCHA
         $recaptcha = new ReCaptcha(config('services.recaptcha.secret'));
-        $response = $recaptcha->verify($request->recaptchaToken, $request->ip());
+        $response  = $recaptcha->verify($request->recaptchaToken, $request->ip());
 
-        if (!$response->isSuccess())
-        {
+        if (! $response->isSuccess()) {
             Log::error('reCAPTCHA verification failed', [
-                'errors' => $response->getErrorCodes(),
-                'hostname' => $response->getHostname(),
+                'errors'       => $response->getErrorCodes(),
+                'hostname'     => $response->getHostname(),
                 'challenge_ts' => $response->getChallengeTs(),
-                'score' => method_exists($response, 'getScore') ? $response->getScore() : null,
-                'action' => method_exists($response, 'getAction') ? $response->getAction() : null,
+                'score'        => method_exists($response, 'getScore') ? $response->getScore() : null,
+                'action'       => method_exists($response, 'getAction') ? $response->getAction() : null,
             ]);
             return response()->json(['success' => false, 'message' => 'reCAPTCHA verification failed'], 422);
         }
@@ -276,13 +296,13 @@ class HomeController extends Controller
         // Validate form data
         try {
             $validated = $request->validate([
-                'name' => 'required|string|max:255',
-                'email' => 'required|email|max:255',
-                'phone' => 'required|string|max:20',
-                'message' => 'required|string',
+                'name'     => 'required|string|max:255',
+                'email'    => 'required|email|max:255',
+                'phone'    => 'required|string|max:20',
+                'message'  => 'required|string',
                 'lastName' => 'nullable|string|max:255',
-                'company' => 'nullable|string|max:255',
-                'country' => 'nullable|string|max:255',
+                'company'  => 'nullable|string|max:255',
+                'country'  => 'nullable|string|max:255',
             ]);
         } catch (\Illuminate\Validation\ValidationException $e) {
             Log::error('Validation failed: ' . json_encode($e->errors()));
@@ -290,7 +310,7 @@ class HomeController extends Controller
         }
 
         // Construct plain text email body
-        $emailBody = "New Feedback / Support Request\n\n";
+        $emailBody  = "New Feedback / Support Request\n\n";
         $emailBody .= "Name: {$validated['name']} " . ($validated['lastName'] ?? '') . "\n";
         $emailBody .= "Email: {$validated['email']}\n";
         $emailBody .= "Phone: {$validated['phone']}\n";
@@ -303,7 +323,7 @@ class HomeController extends Controller
         try {
             Mail::raw($emailBody, function ($message) {
                 $message->to('info@byte-electronics.com')
-                        ->subject('New Contact Form Submission');
+                    ->subject('New Contact Form Submission');
             });
 
             return response()->json(['success' => true, 'message' => 'Message sent successfully']);

@@ -115,7 +115,6 @@ const applyFilters = () => {
                     <p class="description mb-0">{{ description }}</p>
                 </div>
             </div>
-            <!-- <pre>{{ subCategories }}</pre> -->
 
             <div class="d-flex pt-4 pb-4 align-items-center gap-4 flex-wrap actionBtn">
                 <Buttons v-for="(btn, index) in buttons" :key="index" :name="btn.name" :icon="btn.icon"

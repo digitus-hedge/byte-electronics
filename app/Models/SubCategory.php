@@ -13,8 +13,8 @@ class SubCategory extends Model
 {
      use HasFactory, SoftDeletes,  Imageable;//Sluggable,
      protected $table="sub_categories";// Ensure this matches your database table name
-     protected $primaryKey = 'id'; 
-        
+     protected $primaryKey = 'id';
+
     protected $fillable = [
         'name',
         'slug',
