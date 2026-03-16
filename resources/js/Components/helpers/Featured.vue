@@ -60,7 +60,7 @@ defineProps({
         </div> -->
 
         <div class="manufacturers-grid text-center mb-4">
-            <Link v-for="(brand, index) in Brands" :key="index" :href="`brands/details/${brand.slug}`"
+            <Link v-for="(brand, index) in Brands" :key="index" :href="`/brands/${brand.slug}`"
                 class="manufacturer-link">
                 <!-- <pre>{{ brand.file_name }}</pre> -->
 
