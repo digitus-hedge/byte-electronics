@@ -204,8 +204,6 @@ Route::middleware([
 
 Route::group(['prefix' => 'products', 'as' => 'product.'], function () {
     Route::get('/list', [ProductController::class, 'index'])->name('index');
-    // Route::get('/details', [ProductController::class, 'details'])->name('product.details'); //this should be removed or commented after testing
-    Route::get('/details/{slug}', [ProductController::class, 'details'])->name('product.details');
     Route::get('/filter', [ProductController::class, 'filter'])->name('product.filter');
     Route::get('/search', [ProductController::class, 'search'])->name('products.search');
     Route::post('/similar-count', [ProductController::class, 'getSimilarProductsCount'])->name('products.similar-count');
@@ -227,7 +225,7 @@ Route::group(['prefix' => 'categories', 'as' => 'categories.'], function () {
 });
 Route::group(['prefix' => 'brands', 'as' => 'brands.'], function () {
     Route::get('/list', [FrontendBrandController::class, 'index'])->name('list');
-    Route::get('/details/{slug}', [FrontendBrandController::class, 'details'])->name('details');
+    Route::get('/{slug}', [FrontendBrandController::class, 'details'])->name('details');
 });
 // Route::group(['prefix'=>'cart','as'=>'cart.'],function(){
 //     Route::get('/',[CartController::class,'index'])->name('cart');
@@ -302,3 +300,9 @@ Route::get('/{category}/{subcategory}', [FrontendCategoryController::class, 'sho
     ->where('category', '[a-z0-9-]+')
     ->where('subcategory', '[a-z0-9-]+')
     ->name('category.subcategory');
+
+Route::get('/{category}/{subcategory}/{product}', [ProductController::class, 'details'])
+    ->where('category', '[a-z0-9-]+')
+    ->where('subcategory', '[a-z0-9-]+')
+    ->where('product', '[a-z0-9-]+')
+    ->name('product.details.full');

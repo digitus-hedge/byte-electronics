@@ -14,9 +14,6 @@
                 </button>
             </div>
         </div>
-
-        <!-- Swiper Component -->
-        <!-- <pre>{{ products }}</pre> -->
         <Swiper ref="mySwiper" :modules="[Autoplay, Navigation]"
             :autoplay="{ delay: 3000, disableOnInteraction: false }" :spaceBetween="20" :slidesPerView="5" :breakpoints="{
                 320: { slidesPerView: 1, spaceBetween: 10 },
@@ -30,9 +27,10 @@
                     style="border-radius: 10px; overflow: hidden; display: flex; flex-direction: column;">
 
                     <div class="swiper-img-container" style="position: relative;">
-                        <Link :href="`${product.slug}`" class="view-icon-wrapper">
-                        <i class="fas fa-eye"></i>
-                        <span>View Product</span>
+                        <Link :href="`/${product.category_slug}/${product.subcategory_slug}/${product.slug}`"
+                            class="view-icon-wrapper">
+                            <i class="fas fa-eye"></i>
+                            <span>View Product</span>
                         </Link>
 
                         <img :src="getValidImage(product.image)" class="card-img-top img-fluid" :alt="product.name"
@@ -45,12 +43,12 @@
 
                     <div class="card-body d-flex flex-column" style="flex: 1;">
 
-                        <Link :href="`${product.slug}`">
-                        <!-- <pre>{{ product }}</pre> -->
-                        <p class="card-title mb-1" style="font-size: 14px; color: #000000;">
-                            {{ product.name }}
-                            <span>{{ product.part_no ? '(' + product.part_no + ')' : '' }}</span>
-                        </p>
+                        <Link :href="`/${product.category_slug}/${product.subcategory_slug}/${product.slug}`">
+                            <!-- <pre>{{ product }}</pre> -->
+                            <p class="card-title mb-1" style="font-size: 14px; color: #000000;">
+                                {{ product.name }}
+                                <span>{{ product.part_no ? '(' + product.part_no + ')' : '' }}</span>
+                            </p>
                         </Link>
 
                         <p v-if="isBlog" class="card-text text-muted  text-truncate"
@@ -58,7 +56,7 @@
                             {{ product.description }}
                         </p>
                         <Link v-if="isBlog" class="btn-no-border fw-bold mt-auto" :style="{ fontSize: '12px' }">
-                        READ ARTICLE
+                            READ ARTICLE
                         </Link>
                         <!-- <button v-else class="btn-no-border fw-bold mt-auto" @click="addToCart(product.id)"
                             :style="{ fontSize: '12px' }">
@@ -102,20 +100,20 @@
             </div> -->
 
             <div v-if="showConfirm" class="modal-overlay">
-    <div class="modal-content in-modal">
-      <button class="modal-close" @click="cancelAdd">✕</button>
-      <p class="modal-text">
-        You are about to add
-        <strong>{{ selectedProduct.qty }}</strong> units of
-        <strong>{{ selectedProduct.name }}</strong> <br>
-        for <strong>{{ selectedProduct.total_price }} {{ selectedProduct.currency_symbol }}</strong>.
-      </p>
-      <div class="modal-actions">
-        <button class="btn btn-secondary" @click="cancelAdd">Cancel</button>
-        <button class="btn btn-primary" @click="confirmAddToCart">Proceed</button>
-      </div>
-    </div>
-  </div>
+                <div class="modal-content in-modal">
+                    <button class="modal-close" @click="cancelAdd">✕</button>
+                    <p class="modal-text">
+                        You are about to add
+                        <strong>{{ selectedProduct.qty }}</strong> units of
+                        <strong>{{ selectedProduct.name }}</strong> <br>
+                        for <strong>{{ selectedProduct.total_price }} {{ selectedProduct.currency_symbol }}</strong>.
+                    </p>
+                    <div class="modal-actions">
+                        <button class="btn btn-secondary" @click="cancelAdd">Cancel</button>
+                        <button class="btn btn-primary" @click="confirmAddToCart">Proceed</button>
+                    </div>
+                </div>
+            </div>
 
 
             <div v-if="showQuoteModal" class="modal-overlay">
@@ -378,93 +376,98 @@ function cancelAdd() {
     font-size: 12px;
     /* Make icon match text size */
 }
-
-
-
 </style>
 
 <style>
 .modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 50;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 50;
 }
 
 .modal-content {
-  background: #fff;
-  padding: 28px 24px;
-  border-radius: 14px;
-  max-width: 440px;
-  width: 90%;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
-  position: relative;
-  animation: fadeIn 0.25s ease-out;
-  font-family: 'Helvetica Neue', Arial, sans-serif;
+    background: #fff;
+    padding: 28px 24px;
+    border-radius: 14px;
+    max-width: 440px;
+    width: 90%;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+    position: relative;
+    animation: fadeIn 0.25s ease-out;
+    font-family: 'Helvetica Neue', Arial, sans-serif;
 }
 
 .modal-close {
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: transparent;
-  border: none;
-  font-size: 22px;
-  cursor: pointer;
-  color: #555;
-  transition: color 0.2s ease;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #555;
+    transition: color 0.2s ease;
 }
 
 .modal-close:hover {
-  color: #000;
+    color: #000;
 }
 
 .modal-text {
-  font-size: 14px;
-  line-height: 1.7;
-  color: #222;
-  margin-bottom: 22px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #222;
+    margin-bottom: 22px;
 }
 
 .modal-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 20px; /* Increased space between buttons */
+    display: flex;
+    justify-content: flex-end;
+    gap: 20px;
+    /* Increased space between buttons */
 }
 
 .btn {
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-size: 14px;
-  cursor: pointer;
-  border: none;
-  transition: all 0.2s ease;
-  font-weight: 500;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s ease;
+    font-weight: 500;
 }
 
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
+    background: #f3f4f6;
+    color: #374151;
 }
 
 .btn-secondary:hover {
-  background: #e5e7eb;
+    background: #e5e7eb;
 }
 
 .btn-primary {
-  background: #ef4137;
-  color: white;
+    background: #ef4137;
+    color: white;
 }
 
 .btn-primary:hover {
-  background: #ef4137;
+    background: #ef4137;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 </style>

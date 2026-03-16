@@ -72,7 +72,7 @@ class ProductController extends Controller
         ]);
     }
 
-    public function details($slug)
+    public function details(Request $request, $category = null, $subcategory = null, $slug = null)
     {
         $productDetails = products::where('slug', $slug)
             ->with(['brands', 'category', 'subcategories', 'extendedAttributes', 'extendedAttributes.attributes', 'extendedAttributes.attrDocuments', 'extendedAttributes.headers'])
@@ -186,29 +186,42 @@ class ProductController extends Controller
             }),
         ];
 
-        $relatedProducts = products::with('prices')->where('category_id', $productDetails->category_id)
+        $relatedProducts = products::with(['prices', 'category:id,slug', 'subcategories:id,slug'])
+            ->where('category_id', $productDetails->category_id)
             ->where('id', '!=', $productDetails->id)
             ->take(15)
             ->get()
             ->map(function ($relatedProducts) {
                 return [
-                    'id'          => $relatedProducts->id,
-                    'image'       => asset($relatedProducts->file_name),
-                    'name'        => $relatedProducts->name,
-                    'slug'        => $relatedProducts->slug,
-                    'description' => $relatedProducts->description,
-                    'isNew'       => false,
-                    'has_price'   => $relatedProducts->prices && $relatedProducts->prices->count() > 0,
-
+                    'id'               => $relatedProducts->id,
+                    'image'            => asset($relatedProducts->file_name),
+                    'name'             => $relatedProducts->name,
+                    'slug'             => $relatedProducts->slug,
+                    'description'      => $relatedProducts->description,
+                    'isNew'            => false,
+                    'has_price'        => $relatedProducts->prices && $relatedProducts->prices->count() > 0,
+                    'category_slug'    => $relatedProducts->category->slug ?? 'uncategorized',
+                    'subcategory_slug' => $relatedProducts->subcategories->slug ?? 'uncategorized',
                 ];
             });
 
-        $FeaturedProduct = Products::select('name', 'description', 'slug', 'file_name')
+        $FeaturedProduct = Products::with(['category:id,slug', 'subcategories:id,slug'])
+            ->select('id', 'name', 'description', 'slug', 'file_name', 'category_id', 'sub_category_id', 'brand_id')
             ->where('brand_id', $productDetails->brand_id)
             ->where('id', '!=', $productDetails->id)
-        // ->where('featured',1)->where('status',1)
             ->limit(10)->orderBy('created_at', 'asc')
-            ->get();
+            ->get()
+            ->map(function ($product) {
+                return [
+                    'id'               => $product->id,
+                    'name'             => $product->name,
+                    'description'      => $product->description,
+                    'slug'             => $product->slug,
+                    'file_name'        => $product->file_name,
+                    'category_slug'    => $product->category->slug ?? 'uncategorized',
+                    'subcategory_slug' => $product->subcategories->slug ?? 'uncategorized',
+                ];
+            });
 
         return Inertia::render(
             'Products/ProductDetails',
@@ -385,7 +398,8 @@ class ProductController extends Controller
             $page = $lastPage;
         }
 
-        $products = $query->orderBy('id', 'desc')
+        $products = $query->with(['category:id,slug', 'subcategories:id,slug'])
+            ->orderBy('id', 'desc')
             ->offset(($page - 1) * $perPage)
             ->limit($perPage)
             ->get();
@@ -411,15 +425,29 @@ class ProductController extends Controller
 
         $formattedProducts = $prod->through(function ($product) use ($rohsProductIds) {
             return [
-                'id'             => $product->id,
-                'image'          => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
-                'name'           => $product->name,
-                'slug'           => $product->slug,
-                'active'         => (bool) $product->status,
-                'rohs_compliant' => in_array($product->id, $rohsProductIds),
-                'created_at'     => $product->created_at->toDateTimeString(),
+                'id'               => $product->id,
+                'image'            => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
+                'name'             => $product->name,
+                'slug'             => $product->slug,
+                'active'           => (bool) $product->status,
+                'rohs_compliant'   => in_array($product->id, $rohsProductIds),
+                'created_at'       => $product->created_at->toDateTimeString(),
+                'category_slug'    => $product->category->slug ?? 'uncategorized',
+                'subcategory_slug' => $product->subcategories->slug ?? 'uncategorized',
             ];
         });
+
+        // $formattedProducts = $prod->through(function ($product) use ($rohsProductIds) {
+        //     return [
+        //         'id'             => $product->id,
+        //         'image'          => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
+        //         'name'           => $product->name,
+        //         'slug'           => $product->slug,
+        //         'active'         => (bool) $product->status,
+        //         'rohs_compliant' => in_array($product->id, $rohsProductIds),
+        //         'created_at'     => $product->created_at->toDateTimeString(),
+        //     ];
+        // });
 
         $brands        = $isPartialReload ? [] : Cache::remember('filter_brands', 3600, fn() => Brands::select('id', 'name')->get()->toArray());
         $categories    = $isPartialReload ? [] : Cache::remember('filter_categories', 3600, fn() => Category::select('id', 'name')->get()->toArray());
@@ -627,15 +655,29 @@ class ProductController extends Controller
 
         $formattedProducts = $prod->through(function ($product) use ($rohsProductIds) {
             return [
-                'id'             => $product->id,
-                'image'          => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
-                'name'           => $product->name,
-                'slug'           => $product->slug,
-                'active'         => (bool) $product->status,
-                'rohs_compliant' => in_array($product->id, $rohsProductIds),
-                'created_at'     => $product->created_at->toDateTimeString(),
+                'id'               => $product->id,
+                'image'            => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
+                'name'             => $product->name,
+                'slug'             => $product->slug,
+                'active'           => (bool) $product->status,
+                'rohs_compliant'   => in_array($product->id, $rohsProductIds),
+                'created_at'       => $product->created_at->toDateTimeString(),
+                'category_slug'    => $product->category->slug ?? 'uncategorized',
+                'subcategory_slug' => $product->subcategories->slug ?? 'uncategorized',
             ];
         });
+
+        // $formattedProducts = $prod->through(function ($product) use ($rohsProductIds) {
+        //     return [
+        //         'id'             => $product->id,
+        //         'image'          => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
+        //         'name'           => $product->name,
+        //         'slug'           => $product->slug,
+        //         'active'         => (bool) $product->status,
+        //         'rohs_compliant' => in_array($product->id, $rohsProductIds),
+        //         'created_at'     => $product->created_at->toDateTimeString(),
+        //     ];
+        // });
 
         // ---- Cached filter dropdowns ----
         $brands = Cache::remember(

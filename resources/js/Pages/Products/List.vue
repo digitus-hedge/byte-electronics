@@ -94,7 +94,7 @@ const applyFilters = () => {
             }
         });
     }
-    router.get('/products/filter/', queryParams, {
+    router.get(window.location.pathname, queryParams, {
         preserveState: true,
         replace: true,
         preserveScroll: true,
@@ -130,7 +130,7 @@ const updatePage = (newPage) => {
             }
         });
     }
-    router.get('/products/filter/', queryParams, {
+    router.get(window.location.pathname, queryParams, {
         preserveState: true,
         replace: true,
         preserveScroll: true,
@@ -376,7 +376,9 @@ const removeItemFromCart = (itemId) => {
                                             @error="event => event.target.src = '/assets/images/dummy_product.webp'"
                                             class="card-img-top" :alt="product.name" />
                                         <div class="hover-overlay d-flex align-items-center justify-content-center">
-                                            <Link :href="`/products/details/${product.slug}`" class="view-product-btn">
+                                            <Link
+                                                :href="`/${product.category_slug}/${product.subcategory_slug}/${product.slug}`"
+                                                class="view-product-btn">
                                                 <i class="fas fa-eye me-2"></i> View Product
                                             </Link>
                                         </div>
@@ -384,7 +386,9 @@ const removeItemFromCart = (itemId) => {
                                     <!--  -->
 
                                     <div class="card-body d-flex flex-column">
-                                        <Link :href="`/products/details/${product.slug}`" class="product-title">
+                                        <Link
+                                            :href="`/${product.category_slug}/${product.subcategory_slug}/${product.slug}`"
+                                            class="product-title">
                                             {{ product.name }}
                                         </Link>
                                         <button @click="addToCart(product.id)" class="btn w-100 mt-auto"

@@ -50,7 +50,7 @@ class FrontendBrandController extends Controller
 
 
 
-        // Already 
+        // Already
 
         $brands = DB::table('brands')
             ->select('name', 'slug', 'banner')
