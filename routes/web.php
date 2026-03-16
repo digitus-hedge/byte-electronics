@@ -225,6 +225,10 @@ Route::group(['prefix' => 'categories', 'as' => 'categories.'], function () {
 });
 Route::group(['prefix' => 'brands', 'as' => 'brands.'], function () {
     Route::get('/list', [FrontendBrandController::class, 'index'])->name('list');
+    //New 1
+    Route::get('/details/{slug}', function ($slug) {
+        return redirect("/brands/{$slug}");
+    });
     Route::get('/{slug}', [FrontendBrandController::class, 'details'])->name('details');
 });
 // Route::group(['prefix'=>'cart','as'=>'cart.'],function(){
