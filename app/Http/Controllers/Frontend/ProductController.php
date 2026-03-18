@@ -301,7 +301,7 @@ class ProductController extends Controller
 
 
 
-   public function filter_new(Request $request)
+   public function filter(Request $request)
 {
     $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
     $search           = trim($request->input('search', ''));
@@ -560,7 +560,7 @@ class ProductController extends Controller
         ],
     ]);
 }
-    public function filter(Request $request)
+    public function filter_org(Request $request)
     {
         $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
         $search           = $request->input('search', '');

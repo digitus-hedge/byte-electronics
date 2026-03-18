@@ -35,7 +35,7 @@ public function index()
                     ELSE '#'
                 END AS letter_group
             FROM brands
-            WHERE deleted_at IS NULL
+            WHERE deleted_at IS NULL AND status=1
             ORDER BY name
         ) AS sorted_brands
         GROUP BY letter_group
