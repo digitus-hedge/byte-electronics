@@ -11,7 +11,53 @@ use Illuminate\Support\Facades\DB;
 
 class FrontendBrandController extends Controller
 {
-    public function index()
+
+
+public function index()
+{
+    $results = DB::select("
+        SELECT
+            letter_group,
+            JSON_ARRAYAGG(
+                JSON_OBJECT(
+                    'name',   name,
+                    'slug',   slug,
+                    'banner', banner,
+                    'url',    CONCAT('/brands/details/', slug)
+                )
+            ) AS brands
+        FROM (
+            SELECT
+                name, slug, banner,
+                CASE
+                    WHEN UPPER(SUBSTRING(name, 1, 1)) REGEXP '^[A-Z]$'
+                    THEN UPPER(SUBSTRING(name, 1, 1))
+                    ELSE '#'
+                END AS letter_group
+            FROM brands
+            WHERE deleted_at IS NULL
+            ORDER BY name
+        ) AS sorted_brands
+        GROUP BY letter_group
+        ORDER BY letter_group
+    ");
+
+    $groupedBrands = collect($results)->mapWithKeys(function ($row) {
+        return [$row->letter_group => json_decode($row->brands, true)];
+    });
+
+    // Get first brand's banner from first letter group
+    $firstBrand    = $groupedBrands->first()[0] ?? null;
+    $brandBanner   = isset($firstBrand['banner'])
+        ? asset('uploads/brand/banner/' . $firstBrand['banner'])
+        : null;
+
+    return Inertia::render('Brands/List', [
+        'brandBanner'   => $brandBanner,
+        'manufacturers' => $groupedBrands,
+    ]);
+}
+    public function index_org()
     {
         //$brandBanner = asset('assets/banners/Frame 10.png');
 

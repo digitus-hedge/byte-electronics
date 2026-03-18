@@ -299,7 +299,268 @@ class ProductController extends Controller
         return response()->json(['productPageFilter' => $productPageFilter]);
     }
 
-    public function filter(Request $request)
+
+
+   public function filter(Request $request)
+{
+    $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
+    $search           = trim($request->input('search', ''));
+    $page             = max(1, (int) $request->input('page', 1));
+    $active           = filter_var($request->input('active', false), FILTER_VALIDATE_BOOLEAN);
+    $rohsCompliant    = filter_var($request->input('rohsCompliant', false), FILTER_VALIDATE_BOOLEAN);
+    $newProducts      = filter_var($request->input('newProducts', false), FILTER_VALIDATE_BOOLEAN);
+    $manufacturer     = array_map('intval', (array) $request->input('manufacturer', []));
+    $productType      = array_map('intval', (array) $request->input('productType', []));
+    $subCategory      = array_map('intval', (array) $request->input('subCategory', []));
+    $attributeFilters = $request->input('attributeFilters', []);
+    $perPage          = 20;
+
+    // ── Normalize attribute filters ───────────────────────────────────────────
+    $normalizedAttributeFilters = [];
+    foreach ($attributeFilters as $key => $values) {
+        $valuesArray = is_object($values) ? get_object_vars($values) : (array) $values;
+        $clean       = array_values(array_filter($valuesArray, fn($v) => is_string($v) && $v !== ''));
+        if (! empty($clean)) {
+            $normalizedAttributeFilters[$key] = $clean;
+        }
+    }
+
+    // ── Build base query ──────────────────────────────────────────────────────
+    $query = DB::table('products as p')
+        ->select(
+            'p.id',
+            'p.name',
+            'p.slug',
+            'p.file_name',
+            'p.status',
+            'p.created_at',
+            'c.slug  as category_slug',
+            'sc.slug as subcategory_slug'
+        )
+        ->leftJoin('categories as c',      'c.id',  '=', 'p.category_id')
+        ->leftJoin('sub_categories as sc', 'sc.id', '=', 'p.sub_category_id')
+        ->whereNull('p.deleted_at');
+
+    // ── Apply filters ─────────────────────────────────────────────────────────
+    if ($search !== '') {
+        $query->where('p.name', 'like', "%{$search}%");
+    }
+    if (! empty($manufacturer)) {
+        $query->whereIn('p.brand_id', $manufacturer);
+    }
+    if (! empty($productType)) {
+        $query->whereIn('p.category_id', $productType);
+    }
+    if (! empty($subCategory)) {
+        $query->whereIn('p.sub_category_id', $subCategory);
+    }
+    if ($active) {
+        $query->where('p.status', 1);
+    }
+    if ($newProducts) {
+        $query->where('p.created_at', '>=', now()->subDays(30));
+    }
+
+    // ── RoHS: EXISTS is faster than whereHas on large tables ─────────────────
+    if ($rohsCompliant) {
+        $query->whereExists(function ($sub) {
+            $sub->select(DB::raw(1))
+                ->from('product_extended as pe')
+                ->join('product_attr_documents as pad', 'pe.id', '=', 'pad.product_ext_id')
+                ->whereColumn('pe.product_id', 'p.id')
+                ->where('pad.name', 'RoHS')
+                ->limit(1);
+        });
+    }
+
+    // ── Attribute filters: one EXISTS per attribute ───────────────────────────
+    foreach ($normalizedAttributeFilters as $attributeName => $values) {
+        if (! empty($values)) {
+            $query->whereExists(function ($sub) use ($attributeName, $values) {
+                $sub->select(DB::raw(1))
+                    ->from('product_extended as pe2')
+                    ->join('product_attr_documents as pad2', 'pe2.id', '=', 'pad2.product_ext_id')
+                    ->whereColumn('pe2.product_id', 'p.id')
+                    ->where('pad2.name', $attributeName)
+                    ->whereIn('pad2.value', $values)
+                    ->limit(1);
+            });
+        }
+    }
+
+    // ── Count with cache (avoids repeat full-table count) ────────────────────
+    $cacheKey = 'product_filter_count_' . md5(json_encode([
+        $search, $manufacturer, $productType, $subCategory,
+        $active, $rohsCompliant, $newProducts, $normalizedAttributeFilters,
+    ]));
+
+    $total    = Cache::remember($cacheKey, 300, fn() => (clone $query)->count());
+    $lastPage = max(1, (int) ceil($total / $perPage));
+    $page     = min($page, $lastPage);
+
+    // ── Fetch current page ────────────────────────────────────────────────────
+    $products = $query
+        ->orderBy('p.id', 'desc')
+        ->offset(($page - 1) * $perPage)
+        ->limit($perPage)
+        ->get();
+
+    // ── RoHS flags: single query, flipped to hash map for O(1) lookup ────────
+    $productIds     = $products->pluck('id')->toArray();
+    $rohsProductIds = [];
+
+    if (! empty($productIds)) {
+        $rohsProductIds = array_flip(
+            DB::table('product_extended as pe')
+                ->join('product_attr_documents as pad', 'pe.id', '=', 'pad.product_ext_id')
+                ->whereIn('pe.product_id', $productIds)
+                ->where('pad.name', 'RoHS')
+                ->distinct()
+                ->pluck('pe.product_id')
+                ->toArray()
+        );
+    }
+
+    // ── Format products ───────────────────────────────────────────────────────
+    $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+        $products,
+        $total,
+        $perPage,
+        $page,
+        ['path' => $request->url(), 'query' => $request->query()]
+    );
+
+    $formattedProducts = $paginator->through(function ($product) use ($rohsProductIds) {
+        return [
+            'id'               => $product->id,
+            'image'            => $product->file_name
+                                    ? asset('uploads/products/' . $product->file_name)
+                                    : asset('assets/images/dummy_product.webp'),
+            'name'             => $product->name,
+            'slug'             => $product->slug,
+            'active'           => (bool) $product->status,
+            'rohs_compliant'   => isset($rohsProductIds[$product->id]),
+            'created_at'       => $product->created_at,
+            'category_slug'    => $product->category_slug    ?? 'uncategorized',
+            'subcategory_slug' => $product->subcategory_slug ?? 'uncategorized',
+        ];
+    });
+
+    // ── Static filter data — cast to plain arrays before caching ─────────────
+    $toArray = fn($rows) => array_map(fn($r) => (array) $r, $rows->all());
+
+    $brands = $isPartialReload ? [] : Cache::remember(
+        'filter_brands_v2', 3600,
+        fn() => $toArray(DB::table('brands')->select('id', 'name')->orderBy('name')->get())
+    );
+    $categories = $isPartialReload ? [] : Cache::remember(
+        'filter_categories_v2', 3600,
+        fn() => $toArray(DB::table('categories')->select('id', 'name')->orderBy('name')->get())
+    );
+    $subCategories = $isPartialReload ? [] : Cache::remember(
+        'filter_subcategories_v2', 3600,
+        fn() => $toArray(DB::table('sub_categories')->select('id', 'name')->orderBy('name')->get())
+    );
+
+    // ── Valid attribute names for selected category ───────────────────────────
+    $validAttributeNames = [];
+    if (! empty($productType) || ! empty($normalizedAttributeFilters)) {
+        $catKey = implode(',', $productType);
+        $validAttributeNames = Cache::remember(
+            "valid_attr_names_v2_{$catKey}", 3600,
+            function () use ($productType) {
+                return array_flip(
+                    DB::table('product_attr_documents as pad')
+                        ->join('product_extended as pe', 'pad.product_ext_id', '=', 'pe.id')
+                        ->join('products as p',          'pe.product_id',      '=', 'p.id')
+                        ->whereIn('p.category_id', $productType)
+                        ->whereNull('p.deleted_at')
+                        ->distinct()
+                        ->pluck('pad.name')
+                        ->toArray()
+                );
+            }
+        );
+    }
+
+    // ── Attributes from stored proc (very long cache) ─────────────────────────
+    $categoryIds    = implode(',', $productType);
+    $subCategoryIds = implode(',', $subCategory);
+
+    $attributes = $isPartialReload ? [] : Cache::remember(
+        "product_attributes_v2_{$categoryIds}_{$subCategoryIds}",
+        2592000,
+        fn() => DB::select('CALL GetProductAttributes(?, ?)', [$categoryIds, $subCategoryIds])
+    );
+
+    // ── Build filter panel ────────────────────────────────────────────────────
+    $productPageFilter = [
+        [
+            'head' => 'Manufacturer',
+            'data' => array_map(fn($b) => ['id' => $b['id'], 'name' => $b['name']], $brands),
+        ],
+        [
+            'head' => 'Product Type',
+            'data' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $categories),
+        ],
+        [
+            'head' => 'Sub Product Type',
+            'data' => array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $subCategories),
+        ],
+    ];
+
+    foreach ($attributes as $attribute) {
+        if (! empty($validAttributeNames) && ! isset($validAttributeNames[$attribute->attribute_name])) {
+            continue;
+        }
+
+        $values = json_decode($attribute->attribute_values ?? '[]');
+
+        if (empty($values) || ! is_array($values)) {
+            continue;
+        }
+
+        $data = [];
+        foreach ($values as $v) {
+            if (! is_object($v) || ! isset($v->document_id, $v->value)) {
+                continue;
+            }
+            $data[] = [
+                'id'   => $v->document_id,
+                'name' => $v->value,
+            ];
+        }
+
+        if (! empty($data)) {
+            $productPageFilter[] = [
+                'head' => $attribute->attribute_name,
+                'data' => $data,
+            ];
+        }
+    }
+
+    // ── Return ────────────────────────────────────────────────────────────────
+    return inertia('Products/List', [
+        'ProductBanner'     => asset('assets/banners/banner.jpg'),
+        'productPageFilter' => $productPageFilter,
+        'products'          => $formattedProducts,
+        'brands'            => $brands,
+        'categories'        => $categories,
+        'subCategories'     => $subCategories,
+        'selectedFilters'   => [
+            'manufacturer'     => $manufacturer,
+            'productType'      => $productType,
+            'subCategory'      => $subCategory,
+            'page'             => $page,
+            'search'           => $search,
+            'active'           => $active,
+            'rohsCompliant'    => $rohsCompliant,
+            'newProducts'      => $newProducts,
+            'attributeFilters' => $normalizedAttributeFilters,
+        ],
+    ]);
+}
+    public function filter_org(Request $request)
     {
         $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
         $search           = $request->input('search', '');
