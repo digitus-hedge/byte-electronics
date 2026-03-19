@@ -18,6 +18,7 @@ class FrontendCategoryController extends Controller
     public function index()
     {
         $categories = Category::select('id', 'name', 'slug', 'status')
+            ->orderBy('name', 'asc')
             ->get();
 
         if ($categories->isEmpty()) {
@@ -27,6 +28,7 @@ class FrontendCategoryController extends Controller
         $allSubs = DB::table('sub_categories')
             ->select('id', 'category_id', 'name', 'slug', 'parent_id', 'status')
             ->whereNull('deleted_at')
+            ->orderBy('name', 'asc')
             ->get()
             ->groupBy(fn($sub) => $sub->parent_id == $sub->category_id ? 'top_' . $sub->category_id : 'child_' . $sub->parent_id);
 
@@ -276,16 +278,34 @@ class FrontendCategoryController extends Controller
             ? ($finalEntity->file_name ? asset("uploads/category/{$finalEntity->file_name}") : asset('assets/images/dummy_product.webp'))
             : ($finalEntity->image_sub_cat ? asset($finalEntity->image_sub_cat) : asset('assets/images/dummy_product.webp'));
 
+        // Get subcategory IDs that have no products (direct or through children)
+        $emptySubIds = DB::table('sub_categories as sc')
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('products as p')
+                    ->whereColumn('p.sub_category_id', 'sc.id');
+            })
+            ->whereNotExists(function ($query) {
+                $query->select(DB::raw(1))
+                    ->from('sub_categories as child')
+                    ->join('products as p', 'p.sub_category_id', '=', 'child.id')
+                    ->whereColumn('child.parent_id', 'sc.id');
+            })
+            ->pluck('sc.id')
+            ->toArray();
+
         $categoriesForFrontend = $subCategories->isEmpty()
             ? ""
-            : $subCategories->map(function ($sub) use ($slugs) {
-            return [
-                'id'   => $sub->id,
-                'name' => $sub->name,
-                'type' => 'subcategory',
-                'url'  => '/' . $slugs[0] . '/' . $sub->slug,
-            ];
-        });
+            : $subCategories
+            ->filter(fn($sub) => ! in_array($sub->id, $emptySubIds))
+            ->map(function ($sub) use ($slugs) {
+                return [
+                    'id'   => $sub->id,
+                    'name' => $sub->name,
+                    'type' => 'subcategory',
+                    'url'  => '/' . $slugs[0] . '/' . $sub->slug,
+                ];
+            })->values();
 
         // $categoriesForFrontend = $subCategories->isEmpty()
         //     ? ""

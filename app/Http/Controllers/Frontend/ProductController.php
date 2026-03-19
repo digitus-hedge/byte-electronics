@@ -301,6 +301,7 @@ class ProductController extends Controller
 
     public function filter(Request $request)
     {
+
         $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
         $search           = trim($request->input('search', ''));
         $page             = max(1, (int) $request->input('page', 1));
@@ -485,57 +486,59 @@ class ProductController extends Controller
         $categoryIds    = implode(',', $productType);
         $subCategoryIds = implode(',', $subCategory);
 
-        $attributes = $isPartialReload ? [] : Cache::remember(
-            "product_attributes_v2_{$categoryIds}_{$subCategoryIds}",
-            2592000,
-            fn() => DB::select('CALL GetProductAttributes(?, ?)', [$categoryIds, $subCategoryIds])
-        );
+        // $attributes = $isPartialReload ? [] : Cache::remember(
+        //     "product_attributes_v2_{$categoryIds}_{$subCategoryIds}",
+        //     2592000,
+        //     fn() => DB::select('CALL GetProductAttributes(?, ?)', [$categoryIds, $subCategoryIds])
+        // );
 
+        $attributes = [];
         // ── Build filter panel ────────────────────────────────────────────────────
-        $productPageFilter = [
-            [
-                'head' => 'Manufacturer',
-                'data' => array_map(fn($b) => ['id' => $b['id'], 'name' => $b['name']], $brands),
-            ],
-            [
-                'head' => 'Product Type',
-                'data' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $categories),
-            ],
-            [
-                'head' => 'Sub Product Type',
-                'data' => array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $subCategories),
-            ],
-        ];
+        $productPageFilter = [];
+        // $productPageFilter = [
+        //     [
+        //         'head' => 'Manufacturer',
+        //         'data' => array_map(fn($b) => ['id' => $b['id'], 'name' => $b['name']], $brands),
+        //     ],
+        //     [
+        //         'head' => 'Product Type',
+        //         'data' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $categories),
+        //     ],
+        //     [
+        //         'head' => 'Sub Product Type',
+        //         'data' => array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $subCategories),
+        //     ],
+        // ];
 
-        foreach ($attributes as $attribute) {
-            if (! empty($validAttributeNames) && ! isset($validAttributeNames[$attribute->attribute_name])) {
-                continue;
-            }
+        // foreach ($attributes as $attribute) {
+        //     if (! empty($validAttributeNames) && ! isset($validAttributeNames[$attribute->attribute_name])) {
+        //         continue;
+        //     }
 
-            $values = json_decode($attribute->attribute_values ?? '[]');
+        //     $values = json_decode($attribute->attribute_values ?? '[]');
 
-            if (empty($values) || ! is_array($values)) {
-                continue;
-            }
+        //     if (empty($values) || ! is_array($values)) {
+        //         continue;
+        //     }
 
-            $data = [];
-            foreach ($values as $v) {
-                if (! is_object($v) || ! isset($v->document_id, $v->value)) {
-                    continue;
-                }
-                $data[] = [
-                    'id'   => $v->document_id,
-                    'name' => $v->value,
-                ];
-            }
+        //     $data = [];
+        //     foreach ($values as $v) {
+        //         if (! is_object($v) || ! isset($v->document_id, $v->value)) {
+        //             continue;
+        //         }
+        //         $data[] = [
+        //             'id'   => $v->document_id,
+        //             'name' => $v->value,
+        //         ];
+        //     }
 
-            if (! empty($data)) {
-                $productPageFilter[] = [
-                    'head' => $attribute->attribute_name,
-                    'data' => $data,
-                ];
-            }
-        }
+        //     if (! empty($data)) {
+        //         $productPageFilter[] = [
+        //             'head' => $attribute->attribute_name,
+        //             'data' => $data,
+        //         ];
+        //     }
+        // }
 
         // ── Return ────────────────────────────────────────────────────────────────
         return inertia('Products/List', [
@@ -545,6 +548,8 @@ class ProductController extends Controller
             'brands'            => $brands,
             'categories'        => $categories,
             'subCategories'     => $subCategories,
+            'noProductsFound'   => (bool) request()->input('noProductsFound', false),
+            'suggestedTitle'    => request()->input('suggestedTitle', ''),
             'selectedFilters'   => [
                 'manufacturer'     => $manufacturer,
                 'productType'      => $productType,
