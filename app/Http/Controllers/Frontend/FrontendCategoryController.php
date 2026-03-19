@@ -273,8 +273,8 @@ class FrontendCategoryController extends Controller
             ->get();
 
         $image = $finalEntity instanceof Category
-            ? asset("uploads/category/{$finalEntity->file_name}")
-            : asset($finalEntity->image_sub_cat);
+            ? ($finalEntity->file_name ? asset("uploads/category/{$finalEntity->file_name}") : asset('assets/images/dummy_product.webp'))
+            : ($finalEntity->image_sub_cat ? asset($finalEntity->image_sub_cat) : asset('assets/images/dummy_product.webp'));
 
         $categoriesForFrontend = $subCategories->isEmpty()
             ? ""
@@ -300,11 +300,46 @@ class FrontendCategoryController extends Controller
         //         ]),
         //     ];
         // });
+
+        // if ($finalEntity instanceof SubCategory) {
+        //     request()->merge([
+        //         'productType' => [$finalEntity->category_id],
+        //         'subCategory' => [$finalEntity->id],
+        //     ]);
+        //     return app()->make(\App\Http\Controllers\Frontend\ProductController::class)
+        //         ->filter(request());
+        // }
+
         if ($finalEntity instanceof SubCategory) {
-            request()->merge([
-                'productType' => [$finalEntity->category_id],
-                'subCategory' => [$finalEntity->id],
-            ]);
+            // Check if products exist for this subcategory
+            $productCount = DB::table('products')
+                ->where('sub_category_id', $finalEntity->id)
+                ->where('status', 1)
+                ->whereNull('deleted_at')
+                ->count();
+
+            if ($productCount === 0) {
+                // Get sibling subcategories (same parent_id)
+                $siblingIds = DB::table('sub_categories')
+                    ->where('parent_id', $finalEntity->parent_id)
+                    ->where('id', '!=', $finalEntity->id)
+                    ->whereNull('deleted_at')
+                    ->pluck('id')
+                    ->toArray();
+
+                request()->merge([
+                    'productType'     => [$finalEntity->category_id],
+                    'subCategory'     => $siblingIds,
+                    'noProductsFound' => true,
+                    'suggestedTitle'  => $finalEntity->name,
+                ]);
+            } else {
+                request()->merge([
+                    'productType' => [$finalEntity->category_id],
+                    'subCategory' => [$finalEntity->id],
+                ]);
+            }
+
             return app()->make(\App\Http\Controllers\Frontend\ProductController::class)
                 ->filter(request());
         }

@@ -302,10 +302,10 @@ const removeItemFromCart = (itemId) => {
                     </div>
                 </div> -->
                 <div class="container" style="padding: 0; font-size: 14px;">
-                    <AttributeFilterNew :productPageFilter="productPageFilter" :filters="filters"
-                        @update:filters="updateAttributeFilters" />
-                    <!-- <pre>{{ 'rohs', selectedFilters }}</pre> -->
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                    <!-- <AttributeFilterNew :productPageFilter="productPageFilter" :filters="filters"
+                        @update:filters="updateAttributeFilters" /> -->
+                        <!-- <pre>{{ 'rohs', selectedFilters }}</pre> -->
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                         <div class="filter-bar d-flex flex-wrap align-items-center gap-3 p-1 rounded">
                             <span class="filter-label fw-medium text-secondary small align-self-center"
                                 style="color: #000000 !important;">FILTERS:</span>

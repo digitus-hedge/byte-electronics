@@ -1,4 +1,3 @@
-
 <template>
     <AppLayout>
         <BreadCrums />
@@ -20,7 +19,6 @@
                             </li>
                         </ul>
                     </div>
-
                     <div class="col-md-10">
                         <div class="d-flex flex-column flex-md-row align-items-center justify-content-between mb-3">
                             <h4 class="fw-bold text-center text-md-start mb-2 mb-md-0">{{ brand.name }}</h4>
@@ -39,16 +37,15 @@
                                     <BrandCategoryTree v-if="tab.key === 'product'" :categories_brand="tab.content" />
                                     <p v-else style="font-size: 14px;">{{ tab.content }}</p>
                                 </div>
-
                                 <p v-if="activeTab === 'about'"
-                                   class="fw-bold text-danger d-flex align-items-center gap-1"
-                                   style="font-size: 15px;">
-                                    <Link :href="`/products/filter?manufacturer%5B0%5D=${brand.id}`">
+                                    class="fw-bold text-danger d-flex align-items-center gap-1"
+                                    style="font-size: 15px;">
+                                    <a :href="`/brands/${brand.slug}/products`">
                                         Browse all products by {{ brand.name }}
-                                    </Link>
+                                    </a>
                                     <span>
                                         <i class="bi bi-arrow-right-short mt-1 mb-1 fs-6 text-white"
-                                           style="background: #EF4137; border-radius: 50%;"></i>
+                                            style="background: #EF4137; border-radius: 50%;"></i>
                                     </span>
                                 </p>
                             </div>
@@ -66,7 +63,7 @@ import BreadCrums from '@/Layouts/BreadCrums.vue';
 import { Link } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { defineProps } from 'vue';
-import BrandCategoryTree from  "@/Components/helpers/BrandTree.vue";
+import BrandCategoryTree from "@/Components/helpers/BrandTree.vue";
 
 const props = defineProps({
     brand: {
@@ -88,12 +85,15 @@ const activeTab = ref(props.brand.tabs[0].key);
     text-align: left;
     border-bottom: 1px solid #E2E2E2;
 }
+
 a {
-    color: rgba(var(--bs-danger-rgb),var(--bs-text-opacity))!important;
+    color: rgba(var(--bs-danger-rgb), var(--bs-text-opacity)) !important;
 }
+
 .nav-item:last-child .nav-link {
     border-bottom: none;
 }
+
 .nav-link.active {
     background-color: #EF4137;
     color: white;

@@ -106,7 +106,7 @@ const applyFilters = () => {
         <div class="container-fluid container d-flex flex-column align-items-start mt-4 mb-4">
             <div class="d-flex align-items-center gap-4 ">
                 <div>
-                    <img :src="image && image.includes('/uploads/') ? image : '/assets/images/dummy_product.webp'"
+                    <img :src="image && !image.endsWith('/uploads/category') && !image.endsWith('/uploads/category/') ? image : '/assets/images/dummy_product.webp'"
                         :alt="title" class="img-fluid custom-img"
                         style="background: radial-gradient(#040404, #111);border-radius: 10px;">
                 </div>
