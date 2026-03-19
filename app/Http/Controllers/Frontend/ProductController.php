@@ -299,267 +299,265 @@ class ProductController extends Controller
         return response()->json(['productPageFilter' => $productPageFilter]);
     }
 
+    public function filter(Request $request)
+    {
+        $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
+        $search           = trim($request->input('search', ''));
+        $page             = max(1, (int) $request->input('page', 1));
+        $active           = filter_var($request->input('active', false), FILTER_VALIDATE_BOOLEAN);
+        $rohsCompliant    = filter_var($request->input('rohsCompliant', false), FILTER_VALIDATE_BOOLEAN);
+        $newProducts      = filter_var($request->input('newProducts', false), FILTER_VALIDATE_BOOLEAN);
+        $manufacturer     = array_map('intval', (array) $request->input('manufacturer', []));
+        $productType      = array_map('intval', (array) $request->input('productType', []));
+        $subCategory      = array_map('intval', (array) $request->input('subCategory', []));
+        $attributeFilters = $request->input('attributeFilters', []);
+        $perPage          = 20;
 
-
-   public function filter(Request $request)
-{
-    $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
-    $search           = trim($request->input('search', ''));
-    $page             = max(1, (int) $request->input('page', 1));
-    $active           = filter_var($request->input('active', false), FILTER_VALIDATE_BOOLEAN);
-    $rohsCompliant    = filter_var($request->input('rohsCompliant', false), FILTER_VALIDATE_BOOLEAN);
-    $newProducts      = filter_var($request->input('newProducts', false), FILTER_VALIDATE_BOOLEAN);
-    $manufacturer     = array_map('intval', (array) $request->input('manufacturer', []));
-    $productType      = array_map('intval', (array) $request->input('productType', []));
-    $subCategory      = array_map('intval', (array) $request->input('subCategory', []));
-    $attributeFilters = $request->input('attributeFilters', []);
-    $perPage          = 20;
-
-    // ── Normalize attribute filters ───────────────────────────────────────────
-    $normalizedAttributeFilters = [];
-    foreach ($attributeFilters as $key => $values) {
-        $valuesArray = is_object($values) ? get_object_vars($values) : (array) $values;
-        $clean       = array_values(array_filter($valuesArray, fn($v) => is_string($v) && $v !== ''));
-        if (! empty($clean)) {
-            $normalizedAttributeFilters[$key] = $clean;
+        // ── Normalize attribute filters ───────────────────────────────────────────
+        $normalizedAttributeFilters = [];
+        foreach ($attributeFilters as $key => $values) {
+            $valuesArray = is_object($values) ? get_object_vars($values) : (array) $values;
+            $clean       = array_values(array_filter($valuesArray, fn($v) => is_string($v) && $v !== ''));
+            if (! empty($clean)) {
+                $normalizedAttributeFilters[$key] = $clean;
+            }
         }
-    }
 
-    // ── Build base query ──────────────────────────────────────────────────────
-    $query = DB::table('products as p')
-        ->select(
-            'p.id',
-            'p.name',
-            'p.slug',
-            'p.file_name',
-            'p.status',
-            'p.created_at',
-            'c.slug  as category_slug',
-            'sc.slug as subcategory_slug'
-        )
-        ->leftJoin('categories as c',      'c.id',  '=', 'p.category_id')
-        ->leftJoin('sub_categories as sc', 'sc.id', '=', 'p.sub_category_id')
-        ->whereNull('p.deleted_at');
+        // ── Build base query ──────────────────────────────────────────────────────
+        $query = DB::table('products as p')
+            ->select(
+                'p.id',
+                'p.name',
+                'p.slug',
+                'p.file_name',
+                'p.status',
+                'p.created_at',
+                'c.slug  as category_slug',
+                'sc.slug as subcategory_slug'
+            )
+            ->leftJoin('categories as c', 'c.id', '=', 'p.category_id')
+            ->leftJoin('sub_categories as sc', 'sc.id', '=', 'p.sub_category_id')
+            ->whereNull('p.deleted_at');
 
-    // ── Apply filters ─────────────────────────────────────────────────────────
-    if ($search !== '') {
-        $query->where('p.name', 'like', "%{$search}%");
-    }
-    if (! empty($manufacturer)) {
-        $query->whereIn('p.brand_id', $manufacturer);
-    }
-    if (! empty($productType)) {
-        $query->whereIn('p.category_id', $productType);
-    }
-    if (! empty($subCategory)) {
-        $query->whereIn('p.sub_category_id', $subCategory);
-    }
-    if ($active) {
-        $query->where('p.status', 1);
-    }
-    if ($newProducts) {
-        $query->where('p.created_at', '>=', now()->subDays(30));
-    }
+        // ── Apply filters ─────────────────────────────────────────────────────────
+        if ($search !== '') {
+            $query->where('p.name', 'like', "%{$search}%");
+        }
+        if (! empty($manufacturer)) {
+            $query->whereIn('p.brand_id', $manufacturer);
+        }
+        if (! empty($productType)) {
+            $query->whereIn('p.category_id', $productType);
+        }
+        if (! empty($subCategory)) {
+            $query->whereIn('p.sub_category_id', $subCategory);
+        }
+        if ($active) {
+            $query->where('p.status', 1);
+        }
+        if ($newProducts) {
+            $query->where('p.created_at', '>=', now()->subDays(30));
+        }
 
-    // ── RoHS: EXISTS is faster than whereHas on large tables ─────────────────
-    if ($rohsCompliant) {
-        $query->whereExists(function ($sub) {
-            $sub->select(DB::raw(1))
-                ->from('product_extended as pe')
-                ->join('product_attr_documents as pad', 'pe.id', '=', 'pad.product_ext_id')
-                ->whereColumn('pe.product_id', 'p.id')
-                ->where('pad.name', 'RoHS')
-                ->limit(1);
-        });
-    }
-
-    // ── Attribute filters: one EXISTS per attribute ───────────────────────────
-    foreach ($normalizedAttributeFilters as $attributeName => $values) {
-        if (! empty($values)) {
-            $query->whereExists(function ($sub) use ($attributeName, $values) {
+        // ── RoHS: EXISTS is faster than whereHas on large tables ─────────────────
+        if ($rohsCompliant) {
+            $query->whereExists(function ($sub) {
                 $sub->select(DB::raw(1))
-                    ->from('product_extended as pe2')
-                    ->join('product_attr_documents as pad2', 'pe2.id', '=', 'pad2.product_ext_id')
-                    ->whereColumn('pe2.product_id', 'p.id')
-                    ->where('pad2.name', $attributeName)
-                    ->whereIn('pad2.value', $values)
+                    ->from('product_extended as pe')
+                    ->join('product_attr_documents as pad', 'pe.id', '=', 'pad.product_ext_id')
+                    ->whereColumn('pe.product_id', 'p.id')
+                    ->where('pad.name', 'RoHS')
                     ->limit(1);
             });
         }
-    }
 
-    // ── Count with cache (avoids repeat full-table count) ────────────────────
-    $cacheKey = 'product_filter_count_' . md5(json_encode([
-        $search, $manufacturer, $productType, $subCategory,
-        $active, $rohsCompliant, $newProducts, $normalizedAttributeFilters,
-    ]));
-
-    $total    = Cache::remember($cacheKey, 300, fn() => (clone $query)->count());
-    $lastPage = max(1, (int) ceil($total / $perPage));
-    $page     = min($page, $lastPage);
-
-    // ── Fetch current page ────────────────────────────────────────────────────
-    $products = $query
-        ->orderBy('p.id', 'desc')
-        ->offset(($page - 1) * $perPage)
-        ->limit($perPage)
-        ->get();
-
-    // ── RoHS flags: single query, flipped to hash map for O(1) lookup ────────
-    $productIds     = $products->pluck('id')->toArray();
-    $rohsProductIds = [];
-
-    if (! empty($productIds)) {
-        $rohsProductIds = array_flip(
-            DB::table('product_extended as pe')
-                ->join('product_attr_documents as pad', 'pe.id', '=', 'pad.product_ext_id')
-                ->whereIn('pe.product_id', $productIds)
-                ->where('pad.name', 'RoHS')
-                ->distinct()
-                ->pluck('pe.product_id')
-                ->toArray()
-        );
-    }
-
-    // ── Format products ───────────────────────────────────────────────────────
-    $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
-        $products,
-        $total,
-        $perPage,
-        $page,
-        ['path' => $request->url(), 'query' => $request->query()]
-    );
-
-    $formattedProducts = $paginator->through(function ($product) use ($rohsProductIds) {
-        return [
-            'id'               => $product->id,
-            'image'            => $product->file_name
-                                    ? asset('uploads/products/' . $product->file_name)
-                                    : asset('assets/images/dummy_product.webp'),
-            'name'             => $product->name,
-            'slug'             => $product->slug,
-            'active'           => (bool) $product->status,
-            'rohs_compliant'   => isset($rohsProductIds[$product->id]),
-            'created_at'       => $product->created_at,
-            'category_slug'    => $product->category_slug    ?? 'uncategorized',
-            'subcategory_slug' => $product->subcategory_slug ?? 'uncategorized',
-        ];
-    });
-
-    // ── Static filter data — cast to plain arrays before caching ─────────────
-    $toArray = fn($rows) => array_map(fn($r) => (array) $r, $rows->all());
-
-    $brands = $isPartialReload ? [] : Cache::remember(
-        'filter_brands_v2', 3600,
-        fn() => $toArray(DB::table('brands')->select('id', 'name')->orderBy('name')->get())
-    );
-    $categories = $isPartialReload ? [] : Cache::remember(
-        'filter_categories_v2', 3600,
-        fn() => $toArray(DB::table('categories')->select('id', 'name')->orderBy('name')->get())
-    );
-    $subCategories = $isPartialReload ? [] : Cache::remember(
-        'filter_subcategories_v2', 3600,
-        fn() => $toArray(DB::table('sub_categories')->select('id', 'name')->orderBy('name')->get())
-    );
-
-    // ── Valid attribute names for selected category ───────────────────────────
-    $validAttributeNames = [];
-    if (! empty($productType) || ! empty($normalizedAttributeFilters)) {
-        $catKey = implode(',', $productType);
-        $validAttributeNames = Cache::remember(
-            "valid_attr_names_v2_{$catKey}", 3600,
-            function () use ($productType) {
-                return array_flip(
-                    DB::table('product_attr_documents as pad')
-                        ->join('product_extended as pe', 'pad.product_ext_id', '=', 'pe.id')
-                        ->join('products as p',          'pe.product_id',      '=', 'p.id')
-                        ->whereIn('p.category_id', $productType)
-                        ->whereNull('p.deleted_at')
-                        ->distinct()
-                        ->pluck('pad.name')
-                        ->toArray()
-                );
+        // ── Attribute filters: one EXISTS per attribute ───────────────────────────
+        foreach ($normalizedAttributeFilters as $attributeName => $values) {
+            if (! empty($values)) {
+                $query->whereExists(function ($sub) use ($attributeName, $values) {
+                    $sub->select(DB::raw(1))
+                        ->from('product_extended as pe2')
+                        ->join('product_attr_documents as pad2', 'pe2.id', '=', 'pad2.product_ext_id')
+                        ->whereColumn('pe2.product_id', 'p.id')
+                        ->where('pad2.name', $attributeName)
+                        ->whereIn('pad2.value', $values)
+                        ->limit(1);
+                });
             }
+        }
+
+        // ── Count with cache (avoids repeat full-table count) ────────────────────
+        $cacheKey = 'product_filter_count_' . md5(json_encode([
+            $search, $manufacturer, $productType, $subCategory,
+            $active, $rohsCompliant, $newProducts, $normalizedAttributeFilters,
+        ]));
+
+        $total    = Cache::remember($cacheKey, 300, fn() => (clone $query)->count());
+        $lastPage = max(1, (int) ceil($total / $perPage));
+        $page     = min($page, $lastPage);
+
+        // ── Fetch current page ────────────────────────────────────────────────────
+        $products = $query
+            ->orderBy('p.id', 'desc')
+            ->offset(($page - 1) * $perPage)
+            ->limit($perPage)
+            ->get();
+
+        // ── RoHS flags: single query, flipped to hash map for O(1) lookup ────────
+        $productIds     = $products->pluck('id')->toArray();
+        $rohsProductIds = [];
+
+        if (! empty($productIds)) {
+            $rohsProductIds = array_flip(
+                DB::table('product_extended as pe')
+                    ->join('product_attr_documents as pad', 'pe.id', '=', 'pad.product_ext_id')
+                    ->whereIn('pe.product_id', $productIds)
+                    ->where('pad.name', 'RoHS')
+                    ->distinct()
+                    ->pluck('pe.product_id')
+                    ->toArray()
+            );
+        }
+
+        // ── Format products ───────────────────────────────────────────────────────
+        $paginator = new \Illuminate\Pagination\LengthAwarePaginator(
+            $products,
+            $total,
+            $perPage,
+            $page,
+            ['path' => $request->url(), 'query' => $request->query()]
         );
-    }
 
-    // ── Attributes from stored proc (very long cache) ─────────────────────────
-    $categoryIds    = implode(',', $productType);
-    $subCategoryIds = implode(',', $subCategory);
+        $formattedProducts = $paginator->through(function ($product) use ($rohsProductIds) {
+            return [
+                'id'               => $product->id,
+                'image'            => $product->file_name
+                    ? asset('uploads/products/' . $product->file_name)
+                    : asset('assets/images/dummy_product.webp'),
+                'name'             => $product->name,
+                'slug'             => $product->slug,
+                'active'           => (bool) $product->status,
+                'rohs_compliant'   => isset($rohsProductIds[$product->id]),
+                'created_at'       => $product->created_at,
+                'category_slug'    => $product->category_slug ?? 'uncategorized',
+                'subcategory_slug' => $product->subcategory_slug ?? 'uncategorized',
+            ];
+        });
 
-    $attributes = $isPartialReload ? [] : Cache::remember(
-        "product_attributes_v2_{$categoryIds}_{$subCategoryIds}",
-        2592000,
-        fn() => DB::select('CALL GetProductAttributes(?, ?)', [$categoryIds, $subCategoryIds])
-    );
+        // ── Static filter data — cast to plain arrays before caching ─────────────
+        $toArray = fn($rows) => array_map(fn($r) => (array) $r, $rows->all());
 
-    // ── Build filter panel ────────────────────────────────────────────────────
-    $productPageFilter = [
-        [
-            'head' => 'Manufacturer',
-            'data' => array_map(fn($b) => ['id' => $b['id'], 'name' => $b['name']], $brands),
-        ],
-        [
-            'head' => 'Product Type',
-            'data' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $categories),
-        ],
-        [
-            'head' => 'Sub Product Type',
-            'data' => array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $subCategories),
-        ],
-    ];
+        $brands = $isPartialReload ? [] : Cache::remember(
+            'filter_brands_v2', 3600,
+            fn() => $toArray(DB::table('brands')->select('id', 'name')->orderBy('name')->get())
+        );
+        $categories = $isPartialReload ? [] : Cache::remember(
+            'filter_categories_v2', 3600,
+            fn() => $toArray(DB::table('categories')->select('id', 'name')->orderBy('name')->get())
+        );
+        $subCategories = $isPartialReload ? [] : Cache::remember(
+            'filter_subcategories_v2', 3600,
+            fn() => $toArray(DB::table('sub_categories')->select('id', 'name')->orderBy('name')->get())
+        );
 
-    foreach ($attributes as $attribute) {
-        if (! empty($validAttributeNames) && ! isset($validAttributeNames[$attribute->attribute_name])) {
-            continue;
+        // ── Valid attribute names for selected category ───────────────────────────
+        $validAttributeNames = [];
+        if (! empty($productType) || ! empty($normalizedAttributeFilters)) {
+            $catKey              = implode(',', $productType);
+            $validAttributeNames = Cache::remember(
+                "valid_attr_names_v2_{$catKey}", 3600,
+                function () use ($productType) {
+                    return array_flip(
+                        DB::table('product_attr_documents as pad')
+                            ->join('product_extended as pe', 'pad.product_ext_id', '=', 'pe.id')
+                            ->join('products as p', 'pe.product_id', '=', 'p.id')
+                            ->whereIn('p.category_id', $productType)
+                            ->whereNull('p.deleted_at')
+                            ->distinct()
+                            ->pluck('pad.name')
+                            ->toArray()
+                    );
+                }
+            );
         }
 
-        $values = json_decode($attribute->attribute_values ?? '[]');
+        // ── Attributes from stored proc (very long cache) ─────────────────────────
+        $categoryIds    = implode(',', $productType);
+        $subCategoryIds = implode(',', $subCategory);
 
-        if (empty($values) || ! is_array($values)) {
-            continue;
-        }
+        $attributes = $isPartialReload ? [] : Cache::remember(
+            "product_attributes_v2_{$categoryIds}_{$subCategoryIds}",
+            2592000,
+            fn() => DB::select('CALL GetProductAttributes(?, ?)', [$categoryIds, $subCategoryIds])
+        );
 
-        $data = [];
-        foreach ($values as $v) {
-            if (! is_object($v) || ! isset($v->document_id, $v->value)) {
+        // ── Build filter panel ────────────────────────────────────────────────────
+        $productPageFilter = [
+            [
+                'head' => 'Manufacturer',
+                'data' => array_map(fn($b) => ['id' => $b['id'], 'name' => $b['name']], $brands),
+            ],
+            [
+                'head' => 'Product Type',
+                'data' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $categories),
+            ],
+            [
+                'head' => 'Sub Product Type',
+                'data' => array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $subCategories),
+            ],
+        ];
+
+        foreach ($attributes as $attribute) {
+            if (! empty($validAttributeNames) && ! isset($validAttributeNames[$attribute->attribute_name])) {
                 continue;
             }
-            $data[] = [
-                'id'   => $v->document_id,
-                'name' => $v->value,
-            ];
+
+            $values = json_decode($attribute->attribute_values ?? '[]');
+
+            if (empty($values) || ! is_array($values)) {
+                continue;
+            }
+
+            $data = [];
+            foreach ($values as $v) {
+                if (! is_object($v) || ! isset($v->document_id, $v->value)) {
+                    continue;
+                }
+                $data[] = [
+                    'id'   => $v->document_id,
+                    'name' => $v->value,
+                ];
+            }
+
+            if (! empty($data)) {
+                $productPageFilter[] = [
+                    'head' => $attribute->attribute_name,
+                    'data' => $data,
+                ];
+            }
         }
 
-        if (! empty($data)) {
-            $productPageFilter[] = [
-                'head' => $attribute->attribute_name,
-                'data' => $data,
-            ];
-        }
+        // ── Return ────────────────────────────────────────────────────────────────
+        return inertia('Products/List', [
+            'ProductBanner'     => asset('assets/banners/banner.jpg'),
+            'productPageFilter' => $productPageFilter,
+            'products'          => $formattedProducts,
+            'brands'            => $brands,
+            'categories'        => $categories,
+            'subCategories'     => $subCategories,
+            'selectedFilters'   => [
+                'manufacturer'     => $manufacturer,
+                'productType'      => $productType,
+                'subCategory'      => $subCategory,
+                'page'             => $page,
+                'search'           => $search,
+                'active'           => $active,
+                'rohsCompliant'    => $rohsCompliant,
+                'newProducts'      => $newProducts,
+                'attributeFilters' => $normalizedAttributeFilters,
+            ],
+        ]);
     }
-
-    // ── Return ────────────────────────────────────────────────────────────────
-    return inertia('Products/List', [
-        'ProductBanner'     => asset('assets/banners/banner.jpg'),
-        'productPageFilter' => $productPageFilter,
-        'products'          => $formattedProducts,
-        'brands'            => $brands,
-        'categories'        => $categories,
-        'subCategories'     => $subCategories,
-        'selectedFilters'   => [
-            'manufacturer'     => $manufacturer,
-            'productType'      => $productType,
-            'subCategory'      => $subCategory,
-            'page'             => $page,
-            'search'           => $search,
-            'active'           => $active,
-            'rohsCompliant'    => $rohsCompliant,
-            'newProducts'      => $newProducts,
-            'attributeFilters' => $normalizedAttributeFilters,
-        ],
-    ]);
-}
     public function filter_org(Request $request)
     {
         $isPartialReload  = $request->hasHeader('X-Inertia-Partial-Component');
@@ -1319,17 +1317,127 @@ class ProductController extends Controller
         }
     }
 
+    // public function search(Request $request)
+    // {
+    //     $search     = $request->input('search', '');
+    //     $categoryId = $request->input('category_id');
+
+    //     // Product search
+    //     $productQuery = Products::query()
+    //         ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
+    //         ->where(function ($q) use ($search) {
+    //             $q->where('products.name', 'like', "{$search}%")
+    //                 ->orWhere('products.manufacturers_no', 'like', "{$search}%");
+    //         });
+
+    //     if ($categoryId) {
+    //         $productQuery->where('products.category_id', $categoryId);
+    //     }
+
+    //     $products = $productQuery->select(
+    //         'products.id',
+    //         'products.name',
+    //         'products.slug',
+    //         'products.file_name',
+    //         'products.manufacturers_no',
+    //         'brands.name as brand_name'
+    //     )
+    //         ->limit(10)
+    //         ->get()
+    //         ->map(function ($product) {
+    //             $imagePath = 'Uploads/products/' . $product->file_name;
+    //             $image     = file_exists(public_path($imagePath)) && $product->file_name
+    //                 ? asset($imagePath)
+    //                 : asset('assets/images/dummy_product.webp');
+
+    //             return [
+    //                 'id'      => $product->id,
+    //                 'name'    => $product->name,
+    //                 'slug'    => $product->slug,
+    //                 'image'   => $image,
+    //                 'part_no' => $product->manufacturers_no,
+    //                 'brand'   => $product->brand_name,
+    //                 'type'    => 'product',
+    //             ];
+    //         });
+
+    //     $results = ['products' => $products];
+
+    //     // Only fetch categories, subcategories, and brands if no category is selected
+    //     if (! $categoryId) {
+    //         // Category search
+    //         $categories = Category::query()
+    //             ->where('name', 'like', "%{$search}%")
+    //             ->select('id', 'name', 'slug')
+    //             ->limit(5)
+    //             ->get()
+    //             ->map(function ($category) {
+    //                 return [
+    //                     'id'   => $category->id,
+    //                     'name' => $category->name,
+    //                     'slug' => $category->slug,
+    //                     'type' => 'category',
+    //                 ];
+    //             });
+
+    //         // Subcategory search (first-level only)
+    //         $subcategories = SubCategory::query()
+    //             ->with('category:id,slug')
+    //             ->where('name', 'like', "%{$search}%")
+    //             ->whereNull('parent_id')
+    //             ->select('id', 'name', 'slug', 'category_id')
+    //             ->limit(5)
+    //             ->get()
+    //             ->map(function ($subcategory) {
+    //                 return [
+    //                     'id'            => $subcategory->id,
+    //                     'name'          => $subcategory->name,
+    //                     'slug'          => $subcategory->slug,
+    //                     'category_id'   => $subcategory->category_id,
+    //                     'category_slug' => $subcategory->category->slug ?? '',
+    //                     'type'          => 'subcategory',
+    //                 ];
+    //             });
+
+    //         // Brand search
+    //         $brands = Brands::query()
+    //             ->where('name', 'like', "%{$search}%")
+    //             ->select('id', 'name', 'slug')
+    //             ->limit(5)
+    //             ->get()
+    //             ->map(function ($brand) {
+    //                 return [
+    //                     'id'   => $brand->id,
+    //                     'name' => $brand->name,
+    //                     'slug' => $brand->slug,
+    //                     'type' => 'brand',
+    //                 ];
+    //             });
+
+    //         $results['categories']    = $categories;
+    //         $results['subcategories'] = $subcategories;
+    //         $results['brands']        = $brands;
+    //     } else {
+    //         // Ensure empty arrays for categories, subcategories, and brands when category is selected
+    //         $results['categories']    = [];
+    //         $results['subcategories'] = [];
+    //         $results['brands']        = [];
+    //     }
+
+    //     return response()->json($results);
+    // }
+
     public function search(Request $request)
     {
         $search     = $request->input('search', '');
         $categoryId = $request->input('category_id');
 
         // Product search
-        $productQuery = Products::query()
+        $productQuery = DB::table('products')
             ->leftJoin('brands', 'products.brand_id', '=', 'brands.id')
             ->where(function ($q) use ($search) {
-                $q->where('products.name', 'like', "%{$search}%")
-                    ->orWhere('products.manufacturers_no', 'like', "%{$search}%");
+                $q->where('products.name', 'like', "{$search}%")
+                    ->orWhere('products.manufacturers_no', 'like', "{$search}%");
             });
 
         if ($categoryId) {
@@ -1368,7 +1476,7 @@ class ProductController extends Controller
         // Only fetch categories, subcategories, and brands if no category is selected
         if (! $categoryId) {
             // Category search
-            $categories = Category::query()
+            $categories = DB::table('categories')
                 ->where('name', 'like', "%{$search}%")
                 ->select('id', 'name', 'slug')
                 ->limit(5)
@@ -1383,24 +1491,32 @@ class ProductController extends Controller
                 });
 
             // Subcategory search (first-level only)
-            $subcategories = SubCategory::query()
-                ->where('name', 'like', "%{$search}%")
-                ->whereNull('parent_id')
-                ->select('id', 'name', 'slug', 'category_id')
+            $subcategories = DB::table('sub_categories')
+                ->leftJoin('categories', 'sub_categories.category_id', '=', 'categories.id')
+                ->where('sub_categories.name', 'like', "%{$search}%")
+                ->whereNull('sub_categories.parent_id')
+                ->select(
+                    'sub_categories.id',
+                    'sub_categories.name',
+                    'sub_categories.slug',
+                    'sub_categories.category_id',
+                    'categories.slug as category_slug'
+                )
                 ->limit(5)
                 ->get()
                 ->map(function ($subcategory) {
                     return [
-                        'id'          => $subcategory->id,
-                        'name'        => $subcategory->name,
-                        'slug'        => $subcategory->slug,
-                        'category_id' => $subcategory->category_id,
-                        'type'        => 'subcategory',
+                        'id'            => $subcategory->id,
+                        'name'          => $subcategory->name,
+                        'slug'          => $subcategory->slug,
+                        'category_id'   => $subcategory->category_id,
+                        'category_slug' => $subcategory->category_slug ?? '',
+                        'type'          => 'subcategory',
                     ];
                 });
 
             // Brand search
-            $brands = Brands::query()
+            $brands = DB::table('brands')
                 ->where('name', 'like', "%{$search}%")
                 ->select('id', 'name', 'slug')
                 ->limit(5)
@@ -1418,7 +1534,6 @@ class ProductController extends Controller
             $results['subcategories'] = $subcategories;
             $results['brands']        = $brands;
         } else {
-            // Ensure empty arrays for categories, subcategories, and brands when category is selected
             $results['categories']    = [];
             $results['subcategories'] = [];
             $results['brands']        = [];

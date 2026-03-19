@@ -36,11 +36,11 @@ const products = computed(() => {
         console.log('Category:', category.name, 'Subcategories:', category.subcategories);
         return {
             name: category.name,
-            url: `/products/filter?productType%5B0%5D=${category.id}`,
+            url: `/categories/${category.slug}`,
             subcategories: Array.isArray(category.subcategories) ? category.subcategories.map(subcategory => ({
                 id: subcategory.id,
                 name: subcategory.name,
-                url: `/products/filter?productType%5B0%5D=${category.id}&subCategory%5B0%5D=${subcategory.id}`
+                url: `/${category.slug}/${subcategory.slug}`
             })) : [],
         };
     });
@@ -303,16 +303,12 @@ const myFunction = (element) => {
                                 <ul class="dropdown-menu category-dropdown-menu"
                                     :class="{ show: isCategoryDropdownOpen }">
                                     <li>
-                                        <a class="dropdown-item" href="javascript:void(0)"
-                                            @click.stop="selectCategory(null)"
-                                            :class="{ 'active': isCategoryActive(null) }"
-                                            style="font-size: 12px !important;">
+                                        <a class="dropdown-item" href="/categories" style="font-size: 12px !important;">
                                             All Categories
                                         </a>
                                     </li>
                                     <li v-for="category in categories" :key="category.id">
-                                        <a class="dropdown-item" href="javascript:void(0)"
-                                            @click.stop="selectCategory(category.id)"
+                                        <a class="dropdown-item" :href="`/categories/${category.slug}`"
                                             :class="{ 'active': isCategoryActive(category.id) }">
                                             {{ category.name }}
                                         </a>

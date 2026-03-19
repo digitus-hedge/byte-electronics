@@ -1,21 +1,17 @@
 <?php
-
 namespace App\Http\Controllers\Frontend;
 
 use App\Http\Controllers\Controller;
-use Inertia\Inertia;
 use App\Models\Brands;
 use App\Models\Category;
 use Illuminate\Support\Facades\DB;
-
+use Inertia\Inertia;
 
 class FrontendBrandController extends Controller
 {
-
-
-public function index()
-{
-    $results = DB::select("
+    public function index()
+    {
+        $results = DB::select("
         SELECT
             letter_group,
             JSON_ARRAYAGG(
@@ -40,23 +36,24 @@ public function index()
         ) AS sorted_brands
         GROUP BY letter_group
         ORDER BY letter_group
-    ");
+     ");
 
-    $groupedBrands = collect($results)->mapWithKeys(function ($row) {
-        return [$row->letter_group => json_decode($row->brands, true)];
-    });
+        $groupedBrands = collect($results)->mapWithKeys(function ($row) {
+            return [$row->letter_group => json_decode($row->brands, true)];
+        });
 
-    // Get first brand's banner from first letter group
-    $firstBrand    = $groupedBrands->first()[0] ?? null;
-    $brandBanner   = isset($firstBrand['banner'])
-        ? asset('uploads/brand/banner/' . $firstBrand['banner'])
-        : null;
+        // Get first brand's banner from first letter group
+        $firstBrand  = $groupedBrands->first()[0] ?? null;
+        $brandBanner = isset($firstBrand['banner'])
+            ? asset('uploads/brand/banner/' . $firstBrand['banner'])
+            : null;
 
-    return Inertia::render('Brands/List', [
-        'brandBanner'   => $brandBanner,
-        'manufacturers' => $groupedBrands,
-    ]);
-}
+        return Inertia::render('Brands/List', [
+            'brandBanner'   => $brandBanner,
+            'manufacturers' => $groupedBrands,
+        ]);
+    }
+
     public function index_org()
     {
         //$brandBanner = asset('assets/banners/Frame 10.png');
@@ -94,8 +91,6 @@ public function index()
         // Fetch only the `name` and `slug` fields from the Brands table
         //$brands = Brands::select('name', 'slug')->get();
 
-
-
         // Already
 
         $brands = DB::table('brands')
@@ -114,7 +109,6 @@ public function index()
             return preg_match('/[A-Z]/', $firstLetter) ? $firstLetter : '#';
         });
 
-
         $bannerFileName = $brands->isNotEmpty() ? $brands->first()->banner : null;
 
         $brandBanner = $bannerFileName ? asset('uploads/brand/banner/' . $bannerFileName) : null;
@@ -123,7 +117,6 @@ public function index()
             'brandBanner'   => $brandBanner,
             'manufacturers' => $groupedBrands,
         ]);
-
 
         // $brands = DB::table('brands')
         //     ->select('name', 'slug', 'banner')
@@ -197,7 +190,7 @@ public function index()
             ->whereNull('deleted_at')
             ->get();
 
-        $topLevel = [];
+        $topLevel         = [];
         $childrenByParent = [];
 
         foreach ($allSubs as $sub) {
@@ -210,27 +203,29 @@ public function index()
 
         // Step 4: Get all products for this brand in these categories (single query)
         $products = DB::table('products')
-            ->select('id', 'name', 'slug', 'file_name', 'price', 'description', 'category_id', 'sub_category_id')
-            ->where('brand_id', $brandId)
-            ->where('status', 1)
-            ->whereNull('deleted_at')
-            ->whereIn('category_id', $categoryIds)
+            ->leftJoin('categories', 'products.category_id', '=', 'categories.id')
+            ->leftJoin('sub_categories', 'products.sub_category_id', '=', 'sub_categories.id')
+            ->select('products.id', 'products.name', 'products.slug', 'products.file_name', 'products.price', 'products.description', 'products.category_id', 'products.sub_category_id', 'categories.slug as category_slug', 'sub_categories.slug as subcategory_slug')
+            ->where('products.brand_id', $brandId)
+            ->where('products.status', 1)
+            ->whereNull('products.deleted_at')
+            ->whereIn('products.category_id', $categoryIds)
             ->get();
 
         // Group products by sub_category_id and category_id
-        $productsBySub = [];
+        $productsBySub      = [];
         $productsByCategory = [];
 
         foreach ($products as $product) {
             if ($product->sub_category_id) {
                 $productsBySub[$product->sub_category_id][] = [
                     'name' => $product->name,
-                    'url'  => '/products/' . $product->slug,
+                    'url'  => '/' . $product->category_slug . '/' . $product->subcategory_slug . '/' . $product->slug,
                 ];
             } else {
                 $productsByCategory[$product->category_id][] = [
                     'name' => $product->name,
-                    'url'  => '/products/' . $product->slug,
+                    'url'  => '/' . $product->category_slug . '/' . ($product->subcategory_slug ?? 'uncategorized') . '/' . $product->slug,
                 ];
             }
         }
@@ -239,60 +234,59 @@ public function index()
         $categories_brand = [];
 
         foreach ($categories as $category) {
-            $subs = $topLevel[$category->id] ?? [];
+            $subs  = $topLevel[$category->id] ?? [];
             $items = [];
 
             foreach ($subs as $sub) {
-                $subItem = $this->buildBrandSubTree($sub, $childrenByParent, $productsBySub);
-                if (!empty($subItem['items'])) {
+                $subItem = $this->buildBrandSubTree($sub, $childrenByParent, $productsBySub, $category->slug);
+                if (! empty($subItem['items'])) {
                     $items[] = $subItem;
                 }
             }
 
             // Category-level products
-            if (!empty($productsByCategory[$category->id])) {
+            if (! empty($productsByCategory[$category->id])) {
                 $items[] = [
                     'name'  => 'General Products',
-                    'url'   => '/products/filter?category=' . $category->id,
+                    'url'   => '/categories/' . $category->slug,
                     'items' => $productsByCategory[$category->id],
                 ];
             }
 
-            if (!empty($items)) {
+            if (! empty($items)) {
                 $categories_brand[] = [
                     'name'  => $category->name,
-                    'url'   => '/products/filter?category=' . $category->id,
+                    'url'   => '/categories/' . $category->slug,
                     'items' => $items,
                 ];
             }
         }
 
         return Inertia::render('Brands/Details', [
-            'brand' => $this->formatBrandResponse($brandDetails, $categories_brand)
+            'brand' => $this->formatBrandResponse($brandDetails, $categories_brand),
         ]);
     }
 
-    private function buildBrandSubTree($sub, &$childrenByParent, &$productsBySub)
+    private function buildBrandSubTree($sub, &$childrenByParent, &$productsBySub, $categorySlug = '')
     {
         $children = $childrenByParent[$sub->id] ?? [];
-        $items = [];
+        $items    = [];
 
-        // Add child subcategories
         foreach ($children as $child) {
-            $childItem = $this->buildBrandSubTree($child, $childrenByParent, $productsBySub);
-            if (!empty($childItem['items'])) {
+            $childItem = $this->buildBrandSubTree($child, $childrenByParent, $productsBySub, $categorySlug);
+            if (! empty($childItem['items'])) {
                 $items[] = $childItem;
             }
         }
 
         // Add products for this subcategory
-        if (!empty($productsBySub[$sub->id])) {
+        if (! empty($productsBySub[$sub->id])) {
             $items = array_merge($items, $productsBySub[$sub->id]);
         }
 
         return [
             'name'  => $sub->name,
-            'url'   => '/products/filter?productType%5B0%5D=' . $sub->id,
+            'url'   => '/' . $categorySlug . '/' . $sub->slug,
             'items' => $items,
         ];
     }
@@ -301,8 +295,10 @@ public function index()
     {
         return [
             'name'  => $brandDetails->name,
-            'image' => asset('uploads/brand/' . $brandDetails->file_name),
-            'id'    => $brandDetails->id,
+            'slug'  => $brandDetails->slug,
+            'image' => ($brandDetails->file_name && file_exists(public_path('uploads/brand/' . $brandDetails->file_name)))
+                ? asset('uploads/brand/' . rawurlencode($brandDetails->file_name))
+                : asset('assets/images/dummy_product.webp'),
             'tabs'  => [
                 [
                     'key'     => 'about',
@@ -354,19 +350,19 @@ public function index()
                                 ->select('id', 'name', 'slug', 'file_name', 'price', 'description');
                         }]);
                 },
-                'products' => function ($query) use ($brandDetails) {
+                'products'      => function ($query) use ($brandDetails) {
                     $query->where('brand_id', $brandDetails->id)
                         ->where('status', 1)
                         ->select('id', 'name', 'slug', 'file_name', 'price', 'description');
-                }
+                },
             ])
             ->where('status', 1)
             ->get()
             ->map(function ($category) {
                 $categoryData = [
-                    'name' => $category->name,
-                    'url' => '/products/filter?category=' . $category->id,
-                    'items' => []
+                    'name'  => $category->name,
+                    'url'   => '/products/filter?category=' . $category->id,
+                    'items' => [],
                 ];
 
                 // Add top-level subcategories with their products and nested subcategories
@@ -377,40 +373,40 @@ public function index()
                 // Add category-level products as a pseudo-subcategory
                 if ($category->products->isNotEmpty()) {
                     $categoryData['items'][] = [
-                        'name' => 'General Products',
-                        'url' => '/products/filter?category=' . $category->id,
+                        'name'  => 'General Products',
+                        'url'   => '/products/filter?category=' . $category->id,
                         'items' => $category->products->map(function ($product) {
                             return [
                                 'name' => $product->name,
-                                'url' => '/products/' . $product->slug,
+                                'url'  => '/products/' . $product->slug,
                             ];
-                        })->toArray()
+                        })->toArray(),
                     ];
                 }
 
                 return $categoryData;
             })->filter(function ($category) {
-                return !empty($category['items']);
-            })->values()->toArray();
+            return ! empty($category['items']);
+        })->values()->toArray();
 
         $brand = [
-            'name' => $brandDetails->name,
+            'name'  => $brandDetails->name,
             'image' => asset('uploads/brand/' . $brandDetails->file_name),
-            'id' => $brandDetails->id,
-            'tabs' => [
+            'id'    => $brandDetails->id,
+            'tabs'  => [
                 [
-                    'key' => 'about',
-                    'label' => 'About',
+                    'key'     => 'about',
+                    'label'   => 'About',
                     'content' => $brandDetails->description ?? 'No description available.',
                 ],
                 [
-                    'key' => 'product',
-                    'label' => 'Product Line',
+                    'key'     => 'product',
+                    'label'   => 'Product Line',
                     'content' => $categories_brand,
                 ],
                 [
-                    'key' => 'support',
-                    'label' => 'Resources & Support',
+                    'key'     => 'support',
+                    'label'   => 'Resources & Support',
                     'content' => 'Need help? Browse our support resources and contact our team for assistance.',
                 ],
             ],
@@ -425,9 +421,9 @@ public function index()
     private function formatSubcategory($subcategory)
     {
         $subcategoryData = [
-            'name' => $subcategory->name,
-            'url' => '/products/filter?subcategory=' . $subcategory->id,
-            'items' => []
+            'name'  => $subcategory->name,
+            'url'   => '/products/filter?subcategory=' . $subcategory->id,
+            'items' => [],
         ];
 
         // Add products under this subcategory
@@ -437,7 +433,7 @@ public function index()
                 $subcategory->products->map(function ($product) {
                     return [
                         'name' => $product->name,
-                        'url' => '/products/' . $product->slug,
+                        'url'  => '/products/' . $product->slug,
                     ];
                 })->toArray()
             );
@@ -453,10 +449,68 @@ public function index()
         return $subcategoryData;
     }
 
-
     public function prodductLine()
     {
         $productLineBanner = asset('assets/banners/BOSCH-1 1.png');
         return Inertia::render('Brands/ProductLine', compact('productLineBanner'));
+    }
+
+    public function brandProducts($slug)
+    {
+        $brand   = Brands::where('slug', $slug)->firstOrFail();
+        $page    = max(1, (int) request()->input('page', 1));
+        $perPage = 20;
+
+        $products = \App\Models\Products::with(['category:id,slug', 'subcategories:id,slug'])
+            ->select('id', 'name', 'slug', 'file_name', 'status', 'created_at', 'category_id', 'sub_category_id', 'brand_id')
+            ->where('brand_id', $brand->id)
+            ->where('status', 1)
+            ->whereNull('deleted_at')
+            ->orderBy('id', 'desc')
+            ->paginate($perPage, ['*'], 'page', $page);
+
+        $formattedProducts = $products->through(function ($product) {
+            return [
+                'id'               => $product->id,
+                'image'            => $product->file_name ? asset('uploads/products/' . $product->file_name) : asset('assets/images/dummy_product.webp'),
+                'name'             => $product->name,
+                'slug'             => $product->slug,
+                'active'           => (bool) $product->status,
+                'rohs_compliant'   => false,
+                'created_at'       => $product->created_at->toDateTimeString(),
+                'category_slug'    => $product->category->slug ?? 'uncategorized',
+                'subcategory_slug' => $product->subcategories->slug ?? 'uncategorized',
+            ];
+        });
+
+        $brands        = \App\Models\Brands::select('id', 'name')->get()->toArray();
+        $categories    = \App\Models\Category::select('id', 'name')->get()->toArray();
+        $subCategories = \App\Models\SubCategory::select('id', 'name')->get()->toArray();
+
+        $productPageFilter = [
+            ['head' => 'Manufacturer', 'data' => array_map(fn($b) => ['id' => $b['id'], 'name' => $b['name']], $brands)],
+            ['head' => 'Product Type', 'data' => array_map(fn($c) => ['id' => $c['id'], 'name' => $c['name']], $categories)],
+            ['head' => 'Sub Product Type', 'data' => array_map(fn($s) => ['id' => $s['id'], 'name' => $s['name']], $subCategories)],
+        ];
+
+        return Inertia::render('Products/List', [
+            'ProductBanner'     => asset('assets/banners/banner.jpg'),
+            'productPageFilter' => $productPageFilter,
+            'products'          => $formattedProducts,
+            'brands'            => $brands,
+            'categories'        => $categories,
+            'subCategories'     => $subCategories,
+            'selectedFilters'   => [
+                'manufacturer'     => [$brand->id],
+                'productType'      => [],
+                'subCategory'      => [],
+                'page'             => $page,
+                'search'           => '',
+                'active'           => false,
+                'rohsCompliant'    => false,
+                'newProducts'      => false,
+                'attributeFilters' => [],
+            ],
+        ]);
     }
 }

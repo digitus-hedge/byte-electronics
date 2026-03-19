@@ -1,10 +1,11 @@
-
 <template>
     <div class="container-fluid container d-flex flex-column align-items-start mt-4 mb-4"
         v-for="(category, categoryIndex) in structuredCategories" :key="categoryIndex">
         <!-- Category Title -->
         <div class="d-flex align-items-center gap-3 mb-3">
-            <h6><Link :href="category.url" style="color: #ef4137;">{{ category.name }}</Link></h6>
+            <h6>
+                <Link :href="category.url" style="color: #ef4137;">{{ category.name }}</Link>
+            </h6>
             <i class="fa fa-angle-right" aria-hidden="true"></i>
         </div>
 
@@ -19,8 +20,7 @@
             <!-- Subcategory List -->
             <div class="sub-cat-head">
                 <ul class="categories" style="margin-left: 2rem;">
-                    <li v-for="(item, index) in subCategory.items"
-                        :key="index"
+                    <li v-for="(item, index) in subCategory.items" :key="index"
                         :style="getItemStyle(index, subCategory.items.length)">
                         <Link v-if="item.name" :href="item.url">{{ item.name }}</Link>
                     </li>
@@ -143,6 +143,7 @@ h6 {
     .categories {
         flex-direction: column !important;
     }
+
     .categories li {
         padding-left: 10px !important;
     }
