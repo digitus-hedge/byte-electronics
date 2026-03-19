@@ -26,9 +26,15 @@
 
                         <div class="d-flex align-items-start w-100">
                             <template v-if="activeTab === 'about'">
-                                <div class="card me-3 flex-shrink-0" style="width: 100px; height: 100px;">
+                                <!-- <div class="card me-3 flex-shrink-0" style="width: 100px; height: 100px;">
                                     <img :src="brand.image" alt="Brand Image" class="card-img-top"
                                         style="object-fit: cover; height: 100%; width: 100%;">
+                                </div> -->
+                                <div class="card me-3 flex-shrink-0 d-flex align-items-center justify-content-center"
+                                    style="width: 100px; height: 100px;">
+
+                                    <img :src="brand.image" alt="Brand Image"
+                                        style="object-fit: contain; max-height: 100%; max-width: 100%;">
                                 </div>
                             </template>
 
